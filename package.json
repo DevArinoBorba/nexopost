@@ -1,0 +1,29 @@
+{
+  "name": "upload-post-app",
+  "version": "1.0.0",
+  "description": "Upload Posts - Upload Videos to Social Media",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "date-fns": "^2.30.0",
+    "lucide-react": "^0.263.1",
+    "next": "^14",
+    "react": "^18",
+    "react-dom": "^18",
+    "recharts": "^2.10.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "autoprefixer": "^10",
+    "postcss": "^8",
+    "tailwindcss": "^3",
+    "typescript": "^5"
+  }
+}
