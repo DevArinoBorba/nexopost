@@ -18,7 +18,7 @@ export default function BrandLogo({
   className = '',
 }: BrandLogoProps) {
   if (layout === 'stacked') {
-    const dims = size === 'lg' ? 'h-28' : size === 'sm' ? 'h-16' : 'h-22';
+    const dims = size === 'lg' ? 'h-32 sm:h-36' : size === 'sm' ? 'h-20' : 'h-28';
     return (
       <div className={`inline-flex flex-col items-center ${className}`}>
         {tone === 'light' && (
@@ -54,7 +54,11 @@ export default function BrandLogo({
   }
 
   const markSize =
-    size === 'sm' ? 'w-9 h-9' : size === 'lg' ? 'w-12 h-12' : 'w-11 h-11';
+    size === 'sm'
+      ? 'h-11 sm:h-12 w-auto'
+      : size === 'lg'
+        ? 'h-14 sm:h-16 w-auto'
+        : 'h-12 sm:h-14 w-auto';
 
   return (
     <div className={`inline-flex items-center ${className}`}>

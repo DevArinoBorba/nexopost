@@ -73,9 +73,9 @@ export default function Sidebar({ onToggle }: SidebarProps) {
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between px-4 h-16 border-b border-slate-200 dark:border-slate-800">
-            <Link href="/dashboard" className="flex items-center">
-              <BrandLogo layout="horizontal" size="sm" />
+          <div className="flex items-center justify-between px-5 h-20 border-b border-slate-200 dark:border-slate-800">
+            <Link href="/dashboard" aria-label="NexoPost" className="flex items-center">
+              <BrandLogo size="md" />
             </Link>
             <button
               onClick={() => setMobileOpen(false)}

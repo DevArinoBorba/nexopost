@@ -229,9 +229,9 @@ export default function HomePage() {
       {/* Barra de Navegação Minimalista */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#fafaf9]/85 dark:bg-[#090d16]/85 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20">
+          <div className="flex items-center justify-between h-20 sm:h-24">
             <Link href="/" aria-label="NexoPost" className="flex items-center group transition-transform duration-300 hover:scale-[1.02]">
-              <BrandLogo size="md" />
+              <BrandLogo size="lg" />
             </Link>
 
             {/* Links Desktop */}
