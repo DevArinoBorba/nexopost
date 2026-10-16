@@ -2,14 +2,20 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
-interface User {
+export interface User {
+  id?: string;
   email: string;
   name: string;
   plan: string;
+  role?: 'admin' | 'user';
+  company?: string | null;
+  phone?: string | null;
+  avatar_url?: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
+  authenticated: boolean;
   isLoading: boolean;
   login: (user: User) => void;
   logout: () => Promise<void>;
@@ -18,6 +24,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  authenticated: false,
   isLoading: true,
   login: () => {},
   logout: async () => {},
@@ -30,6 +37,7 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [authenticated, setAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Usuário atual vem do próprio servidor (sessão por cookie)
@@ -38,8 +46,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch('/api/config', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
+        setAuthenticated(Boolean(data?.authenticated));
         if (data?.user) {
-          setUser({ email: data.user.email, name: data.user.name, plan: data.user.plan });
+          setUser({
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            plan: data.user.plan,
+            role: data.user.role || 'user',
+            company: data.user.company || null,
+            phone: data.user.phone || null,
+            avatar_url: data.user.avatar_url || null,
+          });
         }
       }
     } catch {
@@ -53,7 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
-  const login = (u: User) => setUser(u);
+  const login = (u: User) => {
+    setUser(u);
+    setAuthenticated(true);
+  };
 
   const logout = async () => {
     try {
@@ -62,10 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // silencioso
     }
     setUser(null);
+    setAuthenticated(false);
     window.location.href = '/login';
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, refresh }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, authenticated, isLoading, login, logout, refresh }}>
+      {children}
+    </AuthContext.Provider>
   );
 }

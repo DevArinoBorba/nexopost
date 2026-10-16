@@ -3,13 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, Loader2 } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login, refresh } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,12 +32,21 @@ export default function LoginPage() {
         setError(data.error || 'Credenciais inválidas');
         return;
       }
+      if (data.user) login(data.user);
+      await refresh();
       router.push('/dashboard');
+      router.refresh();
     } catch {
       setError('Não foi possível conectar ao servidor.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const fillOwnerAccount = () => {
+    setEmail('arinoborba@gmail.com');
+    setPassword('changeme');
+    setError('');
   };
 
   return (
@@ -51,7 +63,7 @@ export default function LoginPage() {
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-8">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Entrar</h1>
           <p className="text-slate-500 dark:text-slate-400 mb-6">
-            Acesse sua conta NexoPost
+            Acesse sua conta NexoPost para gerenciar seus clientes e redes sociais
           </p>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -79,13 +91,21 @@ export default function LoginPage() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                  className="w-full pl-10 pr-11 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:outline-none"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  aria-label="Mostrar ou ocultar senha"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -106,7 +126,7 @@ export default function LoginPage() {
                   Entrando...
                 </>
               ) : (
-                'Entrar'
+                'Entrar na Conta'
               )}
             </button>
           </form>
@@ -115,16 +135,26 @@ export default function LoginPage() {
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Não tem conta?{' '}
               <Link href="/register" className="text-brand-600 hover:text-brand-700 font-medium">
-                Criar conta
+                Criar nova conta
               </Link>
             </p>
           </div>
 
-          {/* Demo hint */}
-          <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
-            <p className="text-xs text-amber-700 dark:text-amber-400">
-              <strong>Demo:</strong> Use <code className="bg-amber-100 dark:bg-amber-900/40 px-1 rounded">arinoborba@gmail.com</code> para fazer login
-            </p>
+          {/* Acesso rápido da conta principal */}
+          <div className="mt-5 p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <ShieldCheck className="w-4 h-4 text-brand-600 flex-shrink-0" />
+              <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
+                Conta Admin: <code className="font-mono">arinoborba@gmail.com</code>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={fillOwnerAccount}
+              className="px-2.5 py-1 text-xs font-medium bg-brand-50 dark:bg-brand-900/40 text-brand-600 dark:text-brand-300 rounded-lg hover:bg-brand-100 transition-colors flex-shrink-0"
+            >
+              Preencher
+            </button>
           </div>
         </div>
       </div>

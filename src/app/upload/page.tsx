@@ -16,6 +16,10 @@ import {
   Check,
   AlertCircle,
   Loader2,
+  Sparkles,
+  Wand2,
+  Copy,
+  CheckCheck,
 } from 'lucide-react';
 
 type ContentType = 'video' | 'photo' | 'text';
@@ -46,6 +50,64 @@ export default function UploadPage() {
   const [result, setResult] = useState<PublishResult | null>(null);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Gemini AI Assistant state
+  const [showAiAssistant, setShowAiAssistant] = useState(false);
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiTone, setAiTone] = useState('viral e persuasivo');
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [appliedNotification, setAppliedNotification] = useState(false);
+  const [aiGenerated, setAiGenerated] = useState<{
+    title: string;
+    description: string;
+    hashtags: string[];
+    callToAction?: string;
+    alternativeTitles: string[];
+  } | null>(null);
+
+  const handleGenerateAi = async () => {
+    const topicToUse = aiTopic.trim() || title.trim();
+    if (!topicToUse) {
+      setAiError('Informe um tema ou título para a IA criar o conteúdo.');
+      return;
+    }
+    setIsGeneratingAi(true);
+    setAiError('');
+    try {
+      const primaryPlatform = selectedPlatforms[0] || 'instagram';
+      const res = await backend.generateAICopy({
+        topic: topicToUse,
+        platform: primaryPlatform,
+        tone: aiTone,
+      });
+      if (res.success && res.data) {
+        setAiGenerated(res.data);
+      } else {
+        setAiError('Não foi possível gerar conteúdo agora. Verifique a chave de API.');
+      }
+    } catch (e) {
+      setAiError((e as Error).message);
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
+  const applyAiContent = (chosenTitle?: string) => {
+    if (!aiGenerated) return;
+    const finalTitle = chosenTitle || aiGenerated.title;
+    let finalDesc = aiGenerated.description;
+    if (aiGenerated.callToAction && !finalDesc.includes(aiGenerated.callToAction)) {
+      finalDesc += `\n\n${aiGenerated.callToAction}`;
+    }
+    if (aiGenerated.hashtags?.length) {
+      finalDesc += `\n\n${aiGenerated.hashtags.join(' ')}`;
+    }
+    setTitle(finalTitle);
+    setDescription(finalDesc);
+    setAppliedNotification(true);
+    setTimeout(() => setAppliedNotification(false), 3000);
+  };
 
   useEffect(() => {
     (async () => {
@@ -280,7 +342,173 @@ export default function UploadPage() {
 
           {/* Details */}
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
-            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">Detalhes</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Detalhes do Post</h3>
+              <button
+                type="button"
+                onClick={() => setShowAiAssistant((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-sm transition-all hover:scale-[1.02]"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{showAiAssistant ? 'Ocultar Assistente IA' : '✨ Gerar com Gemini IA'}</span>
+              </button>
+            </div>
+
+            {/* AI Assistant Drawer */}
+            {showAiAssistant && (
+              <div className="mb-6 p-4 rounded-xl border border-violet-200 dark:border-violet-900/60 bg-gradient-to-br from-violet-50/70 via-indigo-50/40 to-purple-50/50 dark:from-violet-950/20 dark:via-indigo-950/20 dark:to-purple-950/20 transition-all">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center text-white shadow-sm">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-white">Assistente Gemini de Copywriting</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Gere ganchos virais, roteiros e legendas de alto impacto direto com o Google Gemini.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Sobre o que é seu post ou vídeo?
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={aiTopic}
+                        onChange={(e) => setAiTopic(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleGenerateAi()}
+                        placeholder="Ex: 3 erros que destroem o alcance dos Reels e como consertar..."
+                        className="flex-1 px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        disabled={isGeneratingAi}
+                        onClick={handleGenerateAi}
+                        className="px-4 py-2 text-sm font-semibold rounded-lg bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-50 flex items-center gap-2 shadow-sm transition-all"
+                      >
+                        {isGeneratingAi ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Gerando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="w-4 h-4" />
+                            <span>Gerar</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 mr-1">Tom:</span>
+                    {[
+                      { label: '🔥 Viral & Persuasivo', value: 'viral, dinâmico e persuasivo' },
+                      { label: '🎓 Educativo / Passo a Passo', value: 'educativo, claro e didático' },
+                      { label: '💼 Vendas & Conversão', value: 'focado em vendas e chamada para ação forte' },
+                      { label: '⚡ Rápido / Direto ao Ponto', value: 'ultrarrápido, provocativo e conciso' },
+                    ].map((t) => (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => setAiTone(t.value)}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                          aiTone === t.value
+                            ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-violet-300'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {aiError && (
+                    <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{aiError}</span>
+                    </div>
+                  )}
+
+                  {appliedNotification && (
+                    <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2 animate-in fade-in">
+                      <CheckCheck className="w-4 h-4 shrink-0" />
+                      <span>Conteúdo da IA aplicado com sucesso no título e descrição!</span>
+                    </div>
+                  )}
+
+                  {aiGenerated && (
+                    <div className="mt-3 p-3.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                            Título Sugerido
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => applyAiContent()}
+                            className="text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400 flex items-center gap-1"
+                          >
+                            <Copy className="w-3 h-3" />
+                            Aplicar tudo no post
+                          </button>
+                        </div>
+                        <p className="text-sm font-semibold text-slate-800 dark:text-white bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                          {aiGenerated.title}
+                        </p>
+                      </div>
+
+                      {aiGenerated.alternativeTitles?.length > 0 && (
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-500 block mb-1">
+                            Ou escolha outro gancho:
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {aiGenerated.alternativeTitles.map((altTitle, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => applyAiContent(altTitle)}
+                                className="text-xs px-2.5 py-1 rounded-md bg-slate-100 hover:bg-violet-100 dark:bg-slate-800 dark:hover:bg-violet-950/50 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-left transition-all"
+                              >
+                                ⚡ {altTitle}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400 block mb-1">
+                          Legenda & Hashtags
+                        </span>
+                        <div className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-line bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 max-h-40 overflow-y-auto">
+                          {aiGenerated.description}
+                          {aiGenerated.callToAction && `\n\n${aiGenerated.callToAction}`}
+                          {aiGenerated.hashtags?.length > 0 && `\n\n${aiGenerated.hashtags.join(' ')}`}
+                        </div>
+                      </div>
+
+                      <div className="pt-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => applyAiContent()}
+                          className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-sm transition-all"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Aplicar Título e Legenda ao Post</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">

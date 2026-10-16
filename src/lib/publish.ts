@@ -34,7 +34,7 @@ export function guessMime(filePath: string): string {
 }
 
 /** Garante um access_token válido (renova se expirado). */
-async function validTokenSet(account: Account): Promise<TokenSet> {
+export async function validTokenSet(account: Account): Promise<TokenSet> {
   const provider = getProvider(account.platform);
   if (!provider) throw new Error(`Plataforma não suportada: ${account.platform}`);
 

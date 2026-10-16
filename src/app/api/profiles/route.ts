@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listProfiles, getCurrentUser } from '@/lib/activeProfile';
-import { createProfile, getProfiles, deleteProfile, getProfileById } from '@/lib/db';
+import { createProfile, getProfiles, deleteProfile, getProfileById, updateProfile } from '@/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,6 +24,32 @@ export async function POST(request: NextRequest) {
 
   const profile = createProfile(user.id, username);
   return NextResponse.json({ success: true, profile });
+}
+
+export async function PATCH(request: NextRequest) {
+  const user = getCurrentUser();
+  const body = await request.json().catch(() => ({}));
+  const id = String(body.id || '').trim();
+  const username = String(body.username || '').trim();
+
+  if (!id || !username) {
+    return NextResponse.json({ error: 'Informe o ID e o novo nome do cliente.' }, { status: 400 });
+  }
+
+  const profile = getProfileById(id);
+  if (!profile || profile.user_id !== user.id) {
+    return NextResponse.json({ error: 'Cliente não encontrado.' }, { status: 404 });
+  }
+
+  const duplicate = getProfiles(user.id).find(
+    (p) => p.id !== id && p.username.toLowerCase() === username.toLowerCase()
+  );
+  if (duplicate) {
+    return NextResponse.json({ error: 'Já existe outro cliente com esse nome.' }, { status: 400 });
+  }
+
+  const updated = updateProfile(id, username);
+  return NextResponse.json({ success: true, profile: updated });
 }
 
 export async function DELETE(request: NextRequest) {

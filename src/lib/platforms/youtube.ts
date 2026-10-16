@@ -108,8 +108,13 @@ export const youtubeProvider: SocialProvider = {
           customUrl?: string;
           thumbnails?: { default?: { url?: string }; medium?: { url?: string } };
         };
+        statistics?: {
+          subscriberCount?: string;
+          viewCount?: string;
+          videoCount?: string;
+        };
       }[];
-    }>(`${CHANNELS_URL}?part=snippet&mine=true`, {
+    }>(`${CHANNELS_URL}?part=snippet,statistics&mine=true`, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
 
@@ -121,7 +126,12 @@ export const youtubeProvider: SocialProvider = {
       display_name: ch.snippet?.title || 'YouTube Channel',
       handle: ch.snippet?.customUrl || undefined,
       avatar_url: ch.snippet?.thumbnails?.medium?.url || ch.snippet?.thumbnails?.default?.url,
-      meta: { channelId: ch.id },
+      meta: {
+        channelId: ch.id,
+        followers: Number(ch.statistics?.subscriberCount || 0),
+        views: Number(ch.statistics?.viewCount || 0),
+        videos: Number(ch.statistics?.videoCount || 0),
+      },
     };
   },
 

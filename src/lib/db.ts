@@ -10,6 +10,36 @@ import { randomId } from './crypto';
 const DATA_DIR = path.resolve(process.cwd(), process.env.DATA_DIR || './data');
 const DB_PATH = path.join(DATA_DIR, 'app.db');
 
+function runMigrations(db: Database.Database) {
+  // Migrações incrementais (seguras para bancos já existentes)
+  const postCols = (db.prepare('PRAGMA table_info(posts)').all() as { name: string }[]).map((c) => c.name);
+  if (!postCols.includes('privacy')) db.exec('ALTER TABLE posts ADD COLUMN privacy TEXT');
+  if (!postCols.includes('format')) db.exec('ALTER TABLE posts ADD COLUMN format TEXT');
+  if (!postCols.includes('media_paths')) db.exec('ALTER TABLE posts ADD COLUMN media_paths TEXT');
+
+  const userCols = (db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map((c) => c.name);
+  if (!userCols.includes('role')) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+  if (!userCols.includes('status')) db.exec("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+  if (!userCols.includes('company')) db.exec('ALTER TABLE users ADD COLUMN company TEXT');
+  if (!userCols.includes('phone')) db.exec('ALTER TABLE users ADD COLUMN phone TEXT');
+  if (!userCols.includes('avatar_url')) db.exec('ALTER TABLE users ADD COLUMN avatar_url TEXT');
+  if (!userCols.includes('last_login_at')) db.exec('ALTER TABLE users ADD COLUMN last_login_at TEXT');
+  if (!userCols.includes('updated_at')) db.exec('ALTER TABLE users ADD COLUMN updated_at TEXT');
+
+  // Garante que a conta principal / primeiro usuário seja admin
+  db.exec(`
+    UPDATE users
+    SET role = 'admin'
+    WHERE email = 'arinoborba@gmail.com'
+       OR id = (SELECT id FROM users ORDER BY created_at ASC LIMIT 1)
+  `);
+
+  const sessionCols = (db.prepare('PRAGMA table_info(sessions)').all() as { name: string }[]).map((c) => c.name);
+  if (!sessionCols.includes('created_at')) db.exec('ALTER TABLE sessions ADD COLUMN created_at TEXT');
+  if (!sessionCols.includes('user_agent')) db.exec('ALTER TABLE sessions ADD COLUMN user_agent TEXT');
+  if (!sessionCols.includes('ip_address')) db.exec('ALTER TABLE sessions ADD COLUMN ip_address TEXT');
+}
+
 function init(): Database.Database {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   fs.mkdirSync(path.join(DATA_DIR, 'media'), { recursive: true });
@@ -121,17 +151,45 @@ function init(): Database.Database {
       created_at   TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS autodm_rules (
+      id              TEXT PRIMARY KEY,
+      profile_id      TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      account_id      TEXT,
+      platform        TEXT NOT NULL DEFAULT 'instagram',
+      name            TEXT NOT NULL,
+      trigger_type    TEXT NOT NULL DEFAULT 'keyword',
+      keywords        TEXT NOT NULL DEFAULT '[]',
+      post_id         TEXT,
+      reply_comments  TEXT NOT NULL DEFAULT '[]',
+      dm_message      TEXT NOT NULL,
+      delay_seconds   INTEGER NOT NULL DEFAULT 5,
+      status          TEXT NOT NULL DEFAULT 'active',
+      total_triggered INTEGER NOT NULL DEFAULT 0,
+      total_dms_sent  INTEGER NOT NULL DEFAULT 0,
+      created_at      TEXT NOT NULL,
+      updated_at      TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS autodm_logs (
+      id                 TEXT PRIMARY KEY,
+      profile_id         TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      rule_id            TEXT NOT NULL REFERENCES autodm_rules(id) ON DELETE CASCADE,
+      commenter_username TEXT NOT NULL,
+      comment_text       TEXT NOT NULL,
+      reply_text         TEXT,
+      dm_status          TEXT NOT NULL DEFAULT 'sent',
+      created_at         TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_accounts_profile ON accounts(profile_id);
     CREATE INDEX IF NOT EXISTS idx_posts_profile ON posts(profile_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_targets_post ON post_targets(post_id);
     CREATE INDEX IF NOT EXISTS idx_targets_status ON post_targets(status);
+    CREATE INDEX IF NOT EXISTS idx_autodm_profile ON autodm_rules(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_autodm_logs ON autodm_logs(profile_id, created_at DESC);
   `);
 
-  // Migrações incrementais (seguras para bancos já existentes)
-  const postCols = (db.prepare('PRAGMA table_info(posts)').all() as { name: string }[]).map((c) => c.name);
-  if (!postCols.includes('privacy')) db.exec('ALTER TABLE posts ADD COLUMN privacy TEXT');
-  if (!postCols.includes('format')) db.exec('ALTER TABLE posts ADD COLUMN format TEXT');
-  if (!postCols.includes('media_paths')) db.exec('ALTER TABLE posts ADD COLUMN media_paths TEXT');
+  runMigrations(db);
 
   // Cache de statements preparados (melhora performance e evita crash de GC do better-sqlite3 no Node 24)
   const stmtCache = new Map<string, Database.Statement>();
@@ -151,6 +209,9 @@ function init(): Database.Database {
 // Singleton (sobrevive ao hot-reload do Next em dev)
 const g = globalThis as unknown as { __appDb?: Database.Database };
 export const db: Database.Database = g.__appDb ?? init();
+if (g.__appDb) {
+  runMigrations(g.__appDb);
+}
 if (process.env.NODE_ENV !== 'production') g.__appDb = db;
 
 export const now = () => new Date().toISOString();
@@ -165,7 +226,21 @@ export interface User {
   password_hash: string;
   name: string;
   plan: string;
+  role?: 'admin' | 'user';
+  status?: 'active' | 'suspended';
+  company?: string | null;
+  phone?: string | null;
+  avatar_url?: string | null;
+  last_login_at?: string | null;
   created_at: string;
+  updated_at?: string | null;
+}
+
+export interface UserWithStats extends Omit<User, 'password_hash'> {
+  profile_count: number;
+  account_count: number;
+  post_count: number;
+  active_sessions: number;
 }
 
 export interface Profile {
@@ -249,29 +324,148 @@ export function verifyPassword(password: string, stored: string): boolean {
   }
 }
 
-export function createUser(data: { email: string; password: string; name: string }): User {
+export function createUser(data: {
+  email: string;
+  password: string;
+  name: string;
+  plan?: string;
+  role?: 'admin' | 'user';
+  company?: string | null;
+  phone?: string | null;
+  initialProfileName?: string;
+}): User {
+  const ts = now();
+  const totalUsers = (db.prepare('SELECT COUNT(*) as c FROM users').get() as { c: number })?.c || 0;
+  const role: 'admin' | 'user' = data.role || (totalUsers === 0 ? 'admin' : 'user');
   const user: User = {
     id: randomId(),
-    email: data.email.toLowerCase(),
+    email: data.email.trim().toLowerCase(),
     password_hash: hashPassword(data.password),
-    name: data.name,
-    plan: 'free',
-    created_at: now(),
+    name: data.name.trim(),
+    plan: data.plan || 'free',
+    role,
+    status: 'active',
+    company: data.company?.trim() || null,
+    phone: data.phone?.trim() || null,
+    avatar_url: null,
+    last_login_at: null,
+    created_at: ts,
+    updated_at: ts,
   };
   db.prepare(
-    `INSERT INTO users (id,email,password_hash,name,plan,created_at) VALUES (@id,@email,@password_hash,@name,@plan,@created_at)`
+    `INSERT INTO users (id,email,password_hash,name,plan,role,status,company,phone,avatar_url,last_login_at,created_at,updated_at)
+     VALUES (@id,@email,@password_hash,@name,@plan,@role,@status,@company,@phone,@avatar_url,@last_login_at,@created_at,@updated_at)`
   ).run(user);
-  // Cria o perfil padrão
-  createProfile(user.id, 'default');
-  return user;
+  // Cria o perfil padrão do usuário
+  createProfile(user.id, data.initialProfileName?.trim() || 'default');
+  return getUserById(user.id)!;
 }
 
 export function getUserByEmail(email: string): User | null {
-  return (db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase()) as User) || null;
+  return (db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase()) as User) || null;
 }
 
 export function getUserById(id: string): User | null {
   return (db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User) || null;
+}
+
+export function updateUser(
+  id: string,
+  data: Partial<Pick<User, 'name' | 'email' | 'plan' | 'role' | 'status' | 'company' | 'phone' | 'avatar_url' | 'last_login_at'>>
+): User | null {
+  const existing = getUserById(id);
+  if (!existing) return null;
+
+  const nextEmail = data.email !== undefined ? data.email.trim().toLowerCase() : existing.email;
+  const nextName = data.name !== undefined ? data.name.trim() : existing.name;
+  const nextPlan = data.plan !== undefined ? data.plan : existing.plan;
+  const nextRole = data.role !== undefined ? data.role : existing.role || 'user';
+  const nextStatus = data.status !== undefined ? data.status : existing.status || 'active';
+  const nextCompany = data.company !== undefined ? (data.company ? data.company.trim() : null) : existing.company ?? null;
+  const nextPhone = data.phone !== undefined ? (data.phone ? data.phone.trim() : null) : existing.phone ?? null;
+  const nextAvatar = data.avatar_url !== undefined ? data.avatar_url : existing.avatar_url ?? null;
+  const nextLastLogin = data.last_login_at !== undefined ? data.last_login_at : existing.last_login_at ?? null;
+
+  db.prepare(
+    `UPDATE users SET
+      email = @email,
+      name = @name,
+      plan = @plan,
+      role = @role,
+      status = @status,
+      company = @company,
+      phone = @phone,
+      avatar_url = @avatar_url,
+      last_login_at = @last_login_at,
+      updated_at = @updated_at
+     WHERE id = @id`
+  ).run({
+    id,
+    email: nextEmail,
+    name: nextName,
+    plan: nextPlan,
+    role: nextRole,
+    status: nextStatus,
+    company: nextCompany,
+    phone: nextPhone,
+    avatar_url: nextAvatar,
+    last_login_at: nextLastLogin,
+    updated_at: now(),
+  });
+
+  return getUserById(id);
+}
+
+export function updateUserPassword(id: string, newPassword: string): void {
+  db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(
+    hashPassword(newPassword),
+    now(),
+    id
+  );
+}
+
+export function deleteUser(id: string): void {
+  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+}
+
+export function listUsersWithStats(): UserWithStats[] {
+  const users = db.prepare('SELECT * FROM users ORDER BY created_at ASC').all() as User[];
+  const nowIso = now();
+  return users.map((u) => {
+    const profileCount =
+      (db.prepare('SELECT COUNT(*) as c FROM profiles WHERE user_id = ?').get(u.id) as { c: number })?.c || 0;
+    const accountCount =
+      (
+        db
+          .prepare(
+            'SELECT COUNT(*) as c FROM accounts a INNER JOIN profiles p ON a.profile_id = p.id WHERE p.user_id = ?'
+          )
+          .get(u.id) as { c: number }
+      )?.c || 0;
+    const postCount =
+      (
+        db
+          .prepare('SELECT COUNT(*) as c FROM posts po INNER JOIN profiles p ON po.profile_id = p.id WHERE p.user_id = ?')
+          .get(u.id) as { c: number }
+      )?.c || 0;
+    const activeSessions =
+      (
+        db
+          .prepare('SELECT COUNT(*) as c FROM sessions WHERE user_id = ? AND expires_at > ?')
+          .get(u.id, nowIso) as { c: number }
+      )?.c || 0;
+
+    const { password_hash: _pw, ...safeUser } = u;
+    return {
+      ...safeUser,
+      role: u.role || 'user',
+      status: u.status || 'active',
+      profile_count: profileCount,
+      account_count: accountCount,
+      post_count: postCount,
+      active_sessions: activeSessions,
+    };
+  });
 }
 
 // ============================================================
@@ -282,17 +476,30 @@ export interface Session {
   id: string;
   user_id: string;
   expires_at: string;
+  created_at?: string | null;
+  user_agent?: string | null;
+  ip_address?: string | null;
 }
 
 const SESSION_DAYS = 30;
 
-export function createSession(userId: string): Session {
+export function createSession(
+  userId: string,
+  meta?: { userAgent?: string | null; ipAddress?: string | null }
+): Session {
+  const ts = now();
   const session: Session = {
     id: randomId(),
     user_id: userId,
     expires_at: new Date(Date.now() + SESSION_DAYS * 864e5).toISOString(),
+    created_at: ts,
+    user_agent: meta?.userAgent || null,
+    ip_address: meta?.ipAddress || null,
   };
-  db.prepare('INSERT INTO sessions (id,user_id,expires_at) VALUES (@id,@user_id,@expires_at)').run(session);
+  db.prepare(
+    'INSERT INTO sessions (id,user_id,expires_at,created_at,user_agent,ip_address) VALUES (@id,@user_id,@expires_at,@created_at,@user_agent,@ip_address)'
+  ).run(session);
+  updateUser(userId, { last_login_at: ts });
   return session;
 }
 
@@ -310,9 +517,27 @@ export function deleteSession(sessionId: string): void {
   db.prepare('DELETE FROM sessions WHERE id = ?').run(sessionId);
 }
 
+export function getUserSessions(userId: string): Session[] {
+  const nowIso = now();
+  db.prepare('DELETE FROM sessions WHERE user_id = ? AND expires_at <= ?').run(userId, nowIso);
+  return db
+    .prepare('SELECT * FROM sessions WHERE user_id = ? ORDER BY COALESCE(created_at, expires_at) DESC')
+    .all(userId) as Session[];
+}
+
+export function deleteUserSessions(userId: string, exceptSessionId?: string): number {
+  if (exceptSessionId) {
+    return db.prepare('DELETE FROM sessions WHERE user_id = ? AND id != ?').run(userId, exceptSessionId).changes;
+  }
+  return db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId).changes;
+}
+
 export function getUserFromSession(sessionId: string): User | null {
   const s = getSession(sessionId);
-  return s ? getUserById(s.user_id) : null;
+  if (!s) return null;
+  const user = getUserById(s.user_id);
+  if (!user || user.status === 'suspended') return null;
+  return user;
 }
 
 // ============================================================
@@ -329,6 +554,11 @@ export function createProfile(userId: string, username: string): Profile {
     profile
   );
   return profile;
+}
+
+export function updateProfile(id: string, username: string): Profile | null {
+  db.prepare('UPDATE profiles SET username = ? WHERE id = ?').run(username.trim(), id);
+  return getProfileById(id);
 }
 
 export function getProfiles(userId: string): Profile[] {
@@ -656,3 +886,253 @@ export function getProfilesWithCounts(userId: string): (Profile & { account_coun
 export function deleteProfile(id: string): void {
   db.prepare('DELETE FROM profiles WHERE id = ?').run(id);
 }
+
+// ============================================================
+// AutoDM (Automação de Comentários e Mensagens Diretas)
+// ============================================================
+
+export interface AutoDMRule {
+  id: string;
+  profile_id: string;
+  account_id: string | null;
+  platform: string;
+  name: string;
+  trigger_type: 'keyword' | 'any_comment' | 'story_mention';
+  keywords: string[];
+  post_id: string | null;
+  reply_comments: string[];
+  dm_message: string;
+  delay_seconds: number;
+  status: 'active' | 'paused';
+  total_triggered: number;
+  total_dms_sent: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AutoDMLog {
+  id: string;
+  profile_id: string;
+  rule_id: string;
+  rule_name?: string;
+  commenter_username: string;
+  comment_text: string;
+  reply_text: string | null;
+  dm_status: 'sent' | 'simulated' | 'failed';
+  created_at: string;
+}
+
+export function getAutoDMRules(profileId: string): AutoDMRule[] {
+  seedAutoDMDefaultsIfEmpty(profileId);
+  const rows = db
+    .prepare('SELECT * FROM autodm_rules WHERE profile_id = ? ORDER BY created_at DESC')
+    .all(profileId) as any[];
+
+  return rows.map((r) => ({
+    ...r,
+    keywords: JSON.parse(r.keywords || '[]'),
+    reply_comments: JSON.parse(r.reply_comments || '[]'),
+  }));
+}
+
+export function getAutoDMRule(id: string): AutoDMRule | null {
+  const r = db.prepare('SELECT * FROM autodm_rules WHERE id = ?').get(id) as any | undefined;
+  if (!r) return null;
+  return {
+    ...r,
+    keywords: JSON.parse(r.keywords || '[]'),
+    reply_comments: JSON.parse(r.reply_comments || '[]'),
+  };
+}
+
+export function createAutoDMRule(data: {
+  profile_id: string;
+  account_id?: string | null;
+  platform?: string;
+  name: string;
+  trigger_type?: 'keyword' | 'any_comment' | 'story_mention';
+  keywords: string[];
+  post_id?: string | null;
+  reply_comments: string[];
+  dm_message: string;
+  delay_seconds?: number;
+  status?: 'active' | 'paused';
+}): AutoDMRule {
+  const id = randomId();
+  const rule: AutoDMRule = {
+    id,
+    profile_id: data.profile_id,
+    account_id: data.account_id || null,
+    platform: data.platform || 'instagram',
+    name: data.name,
+    trigger_type: data.trigger_type || 'keyword',
+    keywords: data.keywords,
+    post_id: data.post_id || null,
+    reply_comments: data.reply_comments,
+    dm_message: data.dm_message,
+    delay_seconds: data.delay_seconds ?? 5,
+    status: data.status || 'active',
+    total_triggered: 0,
+    total_dms_sent: 0,
+    created_at: now(),
+    updated_at: now(),
+  };
+
+  db.prepare(`
+    INSERT INTO autodm_rules (
+      id, profile_id, account_id, platform, name, trigger_type, keywords,
+      post_id, reply_comments, dm_message, delay_seconds, status,
+      total_triggered, total_dms_sent, created_at, updated_at
+    ) VALUES (
+      @id, @profile_id, @account_id, @platform, @name, @trigger_type, @keywords,
+      @post_id, @reply_comments, @dm_message, @delay_seconds, @status,
+      @total_triggered, @total_dms_sent, @created_at, @updated_at
+    )
+  `).run({
+    ...rule,
+    keywords: JSON.stringify(rule.keywords),
+    reply_comments: JSON.stringify(rule.reply_comments),
+  });
+
+  return rule;
+}
+
+export function updateAutoDMRule(id: string, data: Partial<AutoDMRule>): AutoDMRule | null {
+  const current = getAutoDMRule(id);
+  if (!current) return null;
+
+  const updated: AutoDMRule = {
+    ...current,
+    ...data,
+    updated_at: now(),
+  };
+
+  db.prepare(`
+    UPDATE autodm_rules SET
+      name = @name,
+      platform = @platform,
+      account_id = @account_id,
+      trigger_type = @trigger_type,
+      keywords = @keywords,
+      post_id = @post_id,
+      reply_comments = @reply_comments,
+      dm_message = @dm_message,
+      delay_seconds = @delay_seconds,
+      status = @status,
+      total_triggered = @total_triggered,
+      total_dms_sent = @total_dms_sent,
+      updated_at = @updated_at
+    WHERE id = @id
+  `).run({
+    ...updated,
+    keywords: JSON.stringify(updated.keywords),
+    reply_comments: JSON.stringify(updated.reply_comments),
+  });
+
+  return updated;
+}
+
+export function deleteAutoDMRule(id: string): void {
+  db.prepare('DELETE FROM autodm_rules WHERE id = ?').run(id);
+}
+
+export function toggleAutoDMRule(id: string): AutoDMRule | null {
+  const current = getAutoDMRule(id);
+  if (!current) return null;
+  const newStatus = current.status === 'active' ? 'paused' : 'active';
+  return updateAutoDMRule(id, { status: newStatus });
+}
+
+export function getAutoDMLogs(profileId: string, limit = 50): AutoDMLog[] {
+  return db
+    .prepare(`
+      SELECT l.*, r.name as rule_name
+      FROM autodm_logs l
+      LEFT JOIN autodm_rules r ON l.rule_id = r.id
+      WHERE l.profile_id = ?
+      ORDER BY l.created_at DESC
+      LIMIT ?
+    `)
+    .all(profileId, limit) as AutoDMLog[];
+}
+
+export function createAutoDMLog(data: {
+  profile_id: string;
+  rule_id: string;
+  commenter_username: string;
+  comment_text: string;
+  reply_text?: string | null;
+  dm_status?: 'sent' | 'simulated' | 'failed';
+}): AutoDMLog {
+  const id = randomId();
+  const log: AutoDMLog = {
+    id,
+    profile_id: data.profile_id,
+    rule_id: data.rule_id,
+    commenter_username: data.commenter_username,
+    comment_text: data.comment_text,
+    reply_text: data.reply_text || null,
+    dm_status: data.dm_status || 'sent',
+    created_at: now(),
+  };
+
+  db.prepare(`
+    INSERT INTO autodm_logs (
+      id, profile_id, rule_id, commenter_username, comment_text, reply_text, dm_status, created_at
+    ) VALUES (
+      @id, @profile_id, @rule_id, @commenter_username, @comment_text, @reply_text, @dm_status, @created_at
+    )
+  `).run(log);
+
+  // Incrementar contadores da regra
+  db.prepare(`
+    UPDATE autodm_rules
+    SET total_triggered = total_triggered + 1,
+        total_dms_sent = total_dms_sent + 1,
+        updated_at = ?
+    WHERE id = ?
+  `).run(now(), data.rule_id);
+
+  return log;
+}
+
+export function seedAutoDMDefaultsIfEmpty(profileId: string) {
+  try {
+    const count = (db.prepare('SELECT COUNT(*) as c FROM autodm_rules WHERE profile_id = ?').get(profileId) as any)?.c || 0;
+    if (count > 0) return;
+
+    createAutoDMRule({
+      profile_id: profileId,
+      name: 'Disparo de Link Exclusivo ("QUERO" / "LINK")',
+      platform: 'instagram',
+      trigger_type: 'keyword',
+      keywords: ['quero', 'link', 'envia', 'eu quero', 'manda'],
+      reply_comments: [
+        'Acabei de te enviar no direct com todos os detalhes! 🚀 Dá uma olhada lá!',
+        'Link enviado com sucesso no seu direct! Confere aí! ✨',
+        'Te mandei uma mensagem no privado! Corre lá pra ver 📥'
+      ],
+      dm_message: 'Olá {nome}! Tudo bem?\n\nConforme prometido, aqui está o seu link de acesso exclusivo:\n👉 https://nexopost.com/acesso-vip\n\nSe tiver qualquer dúvida, é só me responder por aqui!\nBoas postagens! 🎯',
+      delay_seconds: 5,
+      status: 'active',
+    });
+
+    createAutoDMRule({
+      profile_id: profileId,
+      name: 'Atendimento Rápido para Preço e Informações',
+      platform: 'instagram',
+      trigger_type: 'keyword',
+      keywords: ['preco', 'preço', 'valor', 'quanto custa', 'info'],
+      reply_comments: [
+        'Te passei os valores e condições especiais no direct! 💬',
+        'Dá uma checada nas suas mensagens, enviei todas as informações por lá! ✅'
+      ],
+      dm_message: 'Oi {nome}!\n\nAqui estão as informações completas e tabela especial com as opções disponíveis:\n\n• Plano Creator: R$ 49/mês\n• Plano Agência: R$ 149/mês\n\nQual deles se encaixa melhor no seu momento? Se quiser, posso agendar uma demonstração rápida!',
+      delay_seconds: 10,
+      status: 'active',
+    });
+  } catch {
+    // se banco não inicializado ainda, ignora
+  }
+}
+

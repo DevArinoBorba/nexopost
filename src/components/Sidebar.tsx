@@ -113,17 +113,30 @@ export default function Sidebar({ onToggle }: SidebarProps) {
 
           {/* User section */}
           <div className="px-3 py-4 border-t border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-3 px-3 py-2 mb-2">
-              <div className="w-9 h-9 bg-slate-900 dark:bg-brand-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                {user?.name?.charAt(0) || 'U'}
+            <Link
+              href="/settings"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-3 px-3 py-2 mb-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <div className="w-9 h-9 bg-slate-900 dark:bg-brand-600 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{user?.name || 'Usuário'}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">
-                  {user?.plan === 'free' ? 'Gratuito' : user?.plan || 'Gratuito'}
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                    {user?.name || 'Usuário'}
+                  </p>
+                  {user?.role === 'admin' && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 rounded">
+                      Admin
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                  {user?.email || (user?.plan === 'free' ? 'Plano Gratuito' : user?.plan || 'Gratuito')}
                 </p>
               </div>
-            </div>
+            </Link>
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
