@@ -117,7 +117,7 @@ export default function AIShortsPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar />
       <div className="flex-1 lg:ml-64">
-        <Header title="AI Shorts" subtitle="Processamento de vídeo local (FFmpeg)" />
+        <Header title="Estúdio IA & Vídeo" subtitle="Processamento de vídeo local (FFmpeg)" />
         <main className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
           <div className="flex items-start gap-4 p-5 bg-gradient-to-r from-brand-50 to-purple-50 dark:from-brand-900/20 dark:to-purple-900/20 rounded-xl border border-brand-200 dark:border-brand-800 mb-8">
             <div className="p-3 bg-brand-100 dark:bg-brand-900/50 rounded-xl">

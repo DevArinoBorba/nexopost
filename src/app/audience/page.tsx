@@ -10,14 +10,14 @@ export default function AudiencePage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar />
       <div className="flex-1 lg:ml-64">
-        <Header title="Audience Insights" subtitle="Demografia dos seguidores" />
+        <Header title="Audiência" subtitle="Demografia e comportamento dos seguidores" />
         <main className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-10 text-center">
             <div className="w-16 h-16 mx-auto bg-gradient-to-br from-brand-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6">
               <Users className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
-              Audience Insights — Em construção
+              Insights de Audiência — Em construção
             </h2>
             <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-lg mx-auto">
               A demografia de seguidores (países, idades, gênero, horários de atividade) vem das APIs oficiais de

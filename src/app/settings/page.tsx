@@ -56,7 +56,7 @@ export default function SettingsPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar />
       <div className="flex-1 lg:ml-64">
-        <Header title="Settings" subtitle="Configurações do servidor próprio" />
+        <Header title="Configurações" subtitle="Configurações do servidor próprio" />
         <main className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
           <div className="flex items-center gap-2 p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto">
             {tabs.map((tab) => (

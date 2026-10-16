@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Upload, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Loader2 } from 'lucide-react';
+import BrandLogo from '@/components/BrandLogo';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,15 +19,23 @@ export default function RegisterPage() {
     setLoading(true);
     setError('');
 
-    // Simular registro (em produção, chamaria API real)
-    if (email && password && name) {
-      // Redirecionar para login (em produção, criaria conta real)
-      router.push('/login');
-    } else {
-      setError('Preencha todos os campos');
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || 'Não foi possível criar a conta.');
+        return;
+      }
+      router.push('/dashboard');
+    } catch {
+      setError('Não foi possível conectar ao servidor.');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -34,11 +43,8 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <Upload className="w-7 h-7 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-white">UploadPost</span>
+          <Link href="/" className="inline-flex items-center justify-center">
+            <BrandLogo layout="stacked" tone="light" size="lg" />
           </Link>
         </div>
 
@@ -46,7 +52,7 @@ export default function RegisterPage() {
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-8">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Criar Conta</h1>
           <p className="text-slate-500 dark:text-slate-400 mb-6">
-            Comece a postar em todas as redes sociais
+            Comece a publicar em todas as redes sociais com o NexoPost
           </p>
 
           <form onSubmit={handleRegister} className="space-y-4">

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Upload, Mail, Lock, Loader2 } from 'lucide-react';
+import { Mail, Lock, Loader2 } from 'lucide-react';
+import BrandLogo from '@/components/BrandLogo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -41,11 +42,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <Upload className="w-7 h-7 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-white">UploadPost</span>
+          <Link href="/" className="inline-flex items-center justify-center">
+            <BrandLogo layout="stacked" tone="light" size="lg" />
           </Link>
         </div>
 
@@ -53,7 +51,7 @@ export default function LoginPage() {
         <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-8">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Entrar</h1>
           <p className="text-slate-500 dark:text-slate-400 mb-6">
-            Acesse sua conta UploadPost
+            Acesse sua conta NexoPost
           </p>
 
           <form onSubmit={handleLogin} className="space-y-4">

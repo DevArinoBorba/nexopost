@@ -133,6 +133,18 @@ function init(): Database.Database {
   if (!postCols.includes('format')) db.exec('ALTER TABLE posts ADD COLUMN format TEXT');
   if (!postCols.includes('media_paths')) db.exec('ALTER TABLE posts ADD COLUMN media_paths TEXT');
 
+  // Cache de statements preparados (melhora performance e evita crash de GC do better-sqlite3 no Node 24)
+  const stmtCache = new Map<string, Database.Statement>();
+  const rawPrepare = db.prepare.bind(db);
+  db.prepare = ((source: string) => {
+    let stmt = stmtCache.get(source);
+    if (!stmt) {
+      stmt = rawPrepare(source);
+      stmtCache.set(source, stmt);
+    }
+    return stmt;
+  }) as typeof db.prepare;
+
   return db;
 }
 

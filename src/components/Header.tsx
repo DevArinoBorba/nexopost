@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Bell, Moon, Sun, Plus } from 'lucide-react';
 import { backend } from '@/lib/client';
+import BrandLogo from './BrandLogo';
 
 interface HeaderProps {
   title?: string;
@@ -58,10 +59,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
               {subtitle && <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-purple-600 rounded-lg" />
-              <span className="font-bold text-slate-900 dark:text-white">UploadPost</span>
-            </div>
+            <BrandLogo layout="horizontal" size="sm" />
           )}
         </div>
 

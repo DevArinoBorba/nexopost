@@ -93,7 +93,7 @@ export default function AnalyticsPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar />
       <div className="flex-1 lg:ml-64">
-        <Header title="Analytics" subtitle="Métricas do seu servidor" />
+        <Header title="Métricas" subtitle="Desempenho de publicações do seu servidor" />
         <main className="p-4 sm:p-6 lg:p-8">
           <div className="flex items-center justify-between mb-6">
             <p className="text-sm text-slate-500">

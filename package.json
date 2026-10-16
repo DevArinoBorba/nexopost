@@ -11,6 +11,7 @@
   "dependencies": {
     "better-sqlite3": "^11.10.0",
     "date-fns": "^2.30.0",
+    "gsap": "^3.15.0",
     "lucide-react": "^0.263.1",
     "next": "^14",
     "react": "^18",

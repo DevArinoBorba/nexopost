@@ -83,7 +83,7 @@ export default function DashboardPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar />
       <div className="flex-1 lg:ml-64">
-        <Header title="Dashboard" subtitle="Servidor próprio" />
+        <Header title="Painel" subtitle="Visão geral do seu servidor NexoPost" />
         <main className="p-4 sm:p-6 lg:p-8">
           {/* Quick Actions */}
           <div className="flex flex-wrap gap-3 mb-8">

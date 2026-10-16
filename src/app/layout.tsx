@@ -3,9 +3,9 @@ import './globals.css'
 import { AuthProvider } from '@/components/AuthProvider'
 
 export const metadata: Metadata = {
-  title: 'Upload Posts - Upload Videos to Social Media',
-  description: 'Upload your videos to the most popular social media with Upload Posts. Post to TikTok, Instagram, YouTube, Facebook, LinkedIn, X and more with a single API call.',
-  keywords: 'Upload Posts, upload videos, social media, TikTok, Instagram, YouTube, Facebook, LinkedIn, X, Twitter',
+  title: 'NexoPost — Publique e Agende Conteúdo em Todas as Redes',
+  description: 'Publique vídeos, fotos e textos no TikTok, Instagram, YouTube, Facebook e mais em um só lugar com o NexoPost.',
+  keywords: 'NexoPost, publicar vídeos, agendar posts, redes sociais, TikTok, Instagram, YouTube, Facebook, automação',
 }
 
 export default function RootLayout({
@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
