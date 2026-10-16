@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSocialCopy } from '@/lib/gemini';
+import { getActiveProfile } from '@/lib/activeProfile';
+import { getBrandProfile } from '@/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,16 +18,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const activeProfile = getActiveProfile();
+    const brandProfile = getBrandProfile(body.profile_id || activeProfile.id);
+
     const result = await generateSocialCopy({
       topic,
       platform: body.platform,
       tone: body.tone,
       videoDurationSeconds: body.duration,
+      brandProfile,
     });
 
     return NextResponse.json({
       success: true,
       data: result,
+      brandProfile: {
+        profile_id: brandProfile.profile_id,
+        company_name: brandProfile.company_name,
+        hasContext: Boolean(
+          brandProfile.company_name ||
+            brandProfile.niche ||
+            brandProfile.target_audience ||
+            brandProfile.unique_selling_points
+        ),
+      },
     });
   } catch (error) {
     console.error('Erro na geração com Gemini:', error);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import PlatformIcon from '@/components/PlatformIcon';
@@ -17,6 +18,8 @@ import {
   Loader2,
   AlertCircle,
   Pencil,
+  Layers,
+  RefreshCw,
 } from 'lucide-react';
 
 const typeIcon: Record<string, typeof FileText> = {
@@ -111,8 +114,32 @@ export default function SchedulePage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <Sidebar />
       <div className="flex-1 lg:ml-64">
-        <Header title="Schedule" subtitle="Posts agendados no servidor próprio" />
+        <Header title="Schedule" subtitle="Calendário e fila de posts agendados" />
         <main className="p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              Total na fila de agendamento: <b className="text-slate-900 dark:text-white">{posts.length}</b> post(s)
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={load}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </button>
+              <Link
+                href="/upload"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white shadow-sm transition-all"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                Novo Upload / Fila em Massa
+              </Link>
+            </div>
+          </div>
+
           {error && (
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-2">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -139,7 +166,10 @@ export default function SchedulePage() {
                     <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                   </button>
                   <button
-                    onClick={() => setCurrentMonth(new Date())}
+                    onClick={() => {
+                      setCurrentMonth(new Date());
+                      setSelectedDate(null);
+                    }}
                     className="px-3 py-1.5 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition-colors"
                   >
                     Hoje
@@ -157,7 +187,8 @@ export default function SchedulePage() {
 
               <div className="grid grid-cols-7 gap-1">
                 {days.map((date, idx) => {
-                  const count = date ? postsOnDate(date).length : 0;
+                  const dayPosts = date ? postsOnDate(date) : [];
+                  const count = dayPosts.length;
                   return (
                     <button
                       key={idx}
@@ -169,16 +200,24 @@ export default function SchedulePage() {
                           : isToday(date)
                           ? 'bg-brand-50 dark:bg-brand-900/30 ring-2 ring-brand-500'
                           : count > 0
-                          ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100'
+                          ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
                           : 'hover:bg-slate-100 dark:hover:bg-slate-800'
                       } ${selectedDate?.toDateString() === date?.toDateString() ? 'ring-2 ring-brand-500' : ''}`}
                     >
                       {date && (
                         <>
-                          <span className={`font-medium ${isToday(date) ? 'text-brand-600' : 'text-slate-700 dark:text-slate-300'}`}>
+                          <span
+                            className={`font-medium ${
+                              isToday(date) ? 'text-brand-600' : 'text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
                             {date.getDate()}
                           </span>
-                          {count > 0 && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-0.5" />}
+                          {count > 0 && (
+                            <span className="mt-0.5 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-emerald-500 text-white leading-tight">
+                              {count}
+                            </span>
+                          )}
                         </>
                       )}
                     </button>
@@ -188,23 +227,26 @@ export default function SchedulePage() {
             </div>
 
             {/* List */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 flex flex-col max-h-[700px]">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold text-slate-900 dark:text-white">
-                  {selectedDate ? selectedDate.toLocaleDateString('pt-BR') : 'Agendados'}
+                  {selectedDate ? selectedDate.toLocaleDateString('pt-BR') : 'Próximos Agendados'}
                 </h2>
-                <span className="px-2 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full">
+                <span className="px-2.5 py-1 text-xs font-bold bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 rounded-full">
                   {visiblePosts.length}
                 </span>
               </div>
 
               {selectedDate && (
-                <button onClick={() => setSelectedDate(null)} className="text-xs text-brand-600 hover:text-brand-700 font-medium mb-3">
-                  ← Ver todos
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="text-xs text-brand-600 hover:text-brand-700 font-medium mb-3 text-left"
+                >
+                  ← Ver todos ({posts.length})
                 </button>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-3 overflow-y-auto pr-1 flex-1">
                 {loading ? (
                   <div className="flex justify-center py-8 text-slate-400">
                     <Loader2 className="w-6 h-6 animate-spin" />
@@ -212,7 +254,13 @@ export default function SchedulePage() {
                 ) : visiblePosts.length === 0 ? (
                   <div className="text-center py-8 text-slate-500 dark:text-slate-400">
                     <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">Nenhum post agendado</p>
+                    <p className="text-sm mb-3">Nenhum post agendado</p>
+                    <Link
+                      href="/upload"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700"
+                    >
+                      Agendar vídeos agora
+                    </Link>
                   </div>
                 ) : (
                   visiblePosts.map((post) => {
@@ -222,10 +270,11 @@ export default function SchedulePage() {
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <Clock className="w-4 h-4 text-amber-500" />
-                            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
                               {new Date(post.scheduled_date).toLocaleString('pt-BR', {
+                                weekday: 'short',
+                                day: '2-digit',
                                 month: 'short',
-                                day: 'numeric',
                                 hour: '2-digit',
                                 minute: '2-digit',
                               })}
@@ -233,14 +282,24 @@ export default function SchedulePage() {
                           </div>
                           {busy === post.job_id && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
                         </div>
-                        <div className="flex items-start gap-2 mb-2">
+                        <div className="flex items-start gap-2 mb-1.5">
                           <Icon className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-                          <p className="font-medium text-slate-900 dark:text-white line-clamp-2">
-                            {post.title || '(sem título)'}
-                          </p>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm text-slate-900 dark:text-white line-clamp-2">
+                              {post.title || '(sem título)'}
+                            </p>
+                            {post.description && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">
+                                {post.description}
+                              </p>
+                            )}
+                            {post.source_filename && (
+                              <p className="text-[11px] text-slate-400 truncate mt-0.5">{post.source_filename}</p>
+                            )}
+                          </div>
                         </div>
                         {post.platforms?.length > 0 && (
-                          <div className="flex items-center gap-1 mb-2">
+                          <div className="flex items-center gap-1 mt-2 mb-2">
                             {post.platforms.map((p) => (
                               <PlatformIcon key={p} platform={p} size="sm" />
                             ))}
@@ -288,7 +347,10 @@ export default function SchedulePage() {
                 className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none mb-6"
               />
               <div className="flex items-center justify-end gap-3">
-                <button onClick={() => setEditing(null)} className="px-4 py-2 text-slate-600 dark:text-slate-400 font-medium hover:text-slate-900 dark:hover:text-white">
+                <button
+                  onClick={() => setEditing(null)}
+                  className="px-4 py-2 text-slate-600 dark:text-slate-400 font-medium hover:text-slate-900 dark:hover:text-white"
+                >
                   Cancelar
                 </button>
                 <button

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { useAuth } from '@/components/AuthProvider';
-import { backend, type UserAccountView, type SessionView } from '@/lib/client';
+import { backend, type UserAccountView, type SessionView, type BrandProfileView } from '@/lib/client';
 import {
   User,
   Users,
@@ -25,9 +25,17 @@ import {
   Building2,
   Phone,
   Mail,
+  Brain,
+  Sparkles,
+  MapPin,
+  Target,
+  Award,
+  Megaphone,
+  Ban,
+  Wand2,
 } from 'lucide-react';
 
-type Tab = 'profile' | 'users' | 'api' | 'appearance' | 'server';
+type Tab = 'profile' | 'brand' | 'users' | 'api' | 'appearance' | 'server';
 
 export default function SettingsPage() {
   const { refresh: refreshAuth } = useAuth();
@@ -46,6 +54,32 @@ export default function SettingsPage() {
   const [phone, setPhone] = useState('');
   const [profileName, setProfileName] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Cérebro da Marca (Brand Context) vinculado ao Perfil
+  const [brandProfilesList, setBrandProfilesList] = useState<{ id: string; username: string }[]>([]);
+  const [selectedBrandProfileId, setSelectedBrandProfileId] = useState<string>('');
+  const [selectedBrandProfileName, setSelectedBrandProfileName] = useState<string>('');
+  const [loadingBrand, setLoadingBrand] = useState(false);
+  const [savingBrand, setSavingBrand] = useState(false);
+  const [brandForm, setBrandForm] = useState<Omit<BrandProfileView, 'profile_id' | 'updated_at'>>({
+    company_name: '',
+    niche: '',
+    location: '',
+    target_audience: '',
+    unique_selling_points: '',
+    tone: '',
+    default_cta: '',
+    rules_to_avoid: '',
+  });
+  const [brandUpdatedAt, setBrandUpdatedAt] = useState<string>('');
+  const [testBrandTopic, setTestBrandTopic] = useState<string>('');
+  const [testingBrandAi, setTestingBrandAi] = useState<boolean>(false);
+  const [testBrandResult, setTestBrandResult] = useState<{
+    title: string;
+    description: string;
+    callToAction?: string;
+    hashtags: string[];
+  } | null>(null);
 
   // Alteração de senha
   const [currentPassword, setCurrentPassword] = useState('');
@@ -74,6 +108,31 @@ export default function SettingsPage() {
     setNotice(msg);
     setTimeout(() => setNotice(''), 4000);
   };
+
+  const loadBrand = useCallback(async (profileId?: string) => {
+    setLoadingBrand(true);
+    try {
+      const data = await backend.getBrandProfile(profileId);
+      setBrandProfilesList(data.profiles || []);
+      setSelectedBrandProfileId(data.profile.id);
+      setSelectedBrandProfileName(data.profile.username);
+      setBrandForm({
+        company_name: data.brandProfile?.company_name || '',
+        niche: data.brandProfile?.niche || '',
+        location: data.brandProfile?.location || '',
+        target_audience: data.brandProfile?.target_audience || '',
+        unique_selling_points: data.brandProfile?.unique_selling_points || '',
+        tone: data.brandProfile?.tone || '',
+        default_cta: data.brandProfile?.default_cta || '',
+        rules_to_avoid: data.brandProfile?.rules_to_avoid || '',
+      });
+      setBrandUpdatedAt(data.brandProfile?.updated_at || '');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoadingBrand(false);
+    }
+  }, []);
 
   const loadMe = useCallback(async () => {
     setLoading(true);
@@ -108,9 +167,60 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains('dark'));
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab') as Tab | null;
+      if (tabParam && ['profile', 'brand', 'users', 'api', 'appearance', 'server'].includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
     loadMe();
     loadUsers();
-  }, [loadMe, loadUsers]);
+    loadBrand();
+  }, [loadMe, loadUsers, loadBrand]);
+
+  const handleSaveBrandProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingBrand(true);
+    setError('');
+    try {
+      const res = await backend.saveBrandProfile({
+        profile_id: selectedBrandProfileId || undefined,
+        ...brandForm,
+      });
+      setBrandUpdatedAt(res.brandProfile.updated_at);
+      showSuccess(`Cérebro da Marca do perfil "${res.profile.username}" salvo com sucesso!`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSavingBrand(false);
+    }
+  };
+
+  const handleTestBrandAi = async () => {
+    const topic = testBrandTopic.trim() || `Apresentação e dica rápida sobre ${brandForm.niche || 'nosso serviço'}`;
+    setTestingBrandAi(true);
+    setError('');
+    try {
+      // Salva primeiro para garantir que o banco esteja atualizado com o formulário atual
+      await backend.saveBrandProfile({
+        profile_id: selectedBrandProfileId || undefined,
+        ...brandForm,
+      });
+      const res = await backend.generateAICopy({
+        topic,
+        platform: 'instagram',
+        profile_id: selectedBrandProfileId || undefined,
+      });
+      if (res.success && res.data) {
+        setTestBrandResult(res.data);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setTestingBrandAi(false);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -268,6 +378,7 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: 'profile', label: 'Minha Conta & Segurança', icon: User },
+    { id: 'brand', label: 'Cérebro da Marca (IA)', icon: Brain },
     { id: 'users', label: `Contas de Usuários (${users.length || 1})`, icon: Users },
     { id: 'api', label: 'API', icon: Key },
     { id: 'appearance', label: 'Aparência', icon: Palette },
@@ -939,6 +1050,285 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* ABA: CÉREBRO DA MARCA (BRAND CONTEXT) */}
+          {activeTab === 'brand' && (
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-600 via-indigo-600 to-brand-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                      <Brain className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                        Cérebro da Marca (Brand Context)
+                      </h2>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Configure a identidade, público-alvo, diferenciais, CTA padrão e regras do perfil ativo. O{' '}
+                        <b className="text-violet-600 dark:text-violet-400">Google Gemini</b> injeta automaticamente
+                        esse contexto em todos os títulos, roteiros e legendas gerados.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Seletor de Perfil (Cliente) */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Perfil:</span>
+                    <select
+                      value={selectedBrandProfileId}
+                      onChange={(e) => {
+                        const nextId = e.target.value;
+                        setSelectedBrandProfileId(nextId);
+                        loadBrand(nextId);
+                      }}
+                      className="px-3 py-2 text-xs font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                    >
+                      {brandProfilesList.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.username}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {loadingBrand ? (
+                  <div className="flex justify-center py-12 text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : (
+                  <form onSubmit={handleSaveBrandProfile} className="space-y-5">
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                          <Building2 className="w-4 h-4 inline mr-1 text-brand-500" />
+                          Nome da Empresa / Marca
+                        </label>
+                        <input
+                          type="text"
+                          value={brandForm.company_name}
+                          onChange={(e) => setBrandForm((prev) => ({ ...prev, company_name: e.target.value }))}
+                          placeholder="Ex: Clínica OdontoPrime / NexoPost"
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                          <Sparkles className="w-4 h-4 inline mr-1 text-violet-500" />
+                          Nicho / Segmento
+                        </label>
+                        <input
+                          type="text"
+                          value={brandForm.niche}
+                          onChange={(e) => setBrandForm((prev) => ({ ...prev, niche: e.target.value }))}
+                          placeholder="Ex: Odontologia Estética, SaaS de Marketing, Fitness..."
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                          <MapPin className="w-4 h-4 inline mr-1 text-emerald-500" />
+                          Localização / Abrangência
+                        </label>
+                        <input
+                          type="text"
+                          value={brandForm.location}
+                          onChange={(e) => setBrandForm((prev) => ({ ...prev, location: e.target.value }))}
+                          placeholder="Ex: São Paulo - SP / Atendimento Nacional"
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                          <Target className="w-4 h-4 inline mr-1 text-indigo-500" />
+                          Público-Alvo (Persona, Dores e Desejos)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={brandForm.target_audience}
+                          onChange={(e) => setBrandForm((prev) => ({ ...prev, target_audience: e.target.value }))}
+                          placeholder="Ex: Empreendedores, criadores de conteúdo e gestores de tráfego de 22 a 45 anos que querem escalar vídeos curtos sem perder horas editando e agendando..."
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none resize-y"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                          <Award className="w-4 h-4 inline mr-1 text-amber-500" />
+                          Diferenciais Únicos (USPs)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={brandForm.unique_selling_points}
+                          onChange={(e) =>
+                            setBrandForm((prev) => ({ ...prev, unique_selling_points: e.target.value }))
+                          }
+                          placeholder="Ex: Atendimento humanizado em 5 minutos, garantia de 12 meses, tecnologia própria sem mensalidades abusivas..."
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none resize-y"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                          Tom de Voz da Marca
+                        </label>
+                        <input
+                          type="text"
+                          value={brandForm.tone}
+                          onChange={(e) => setBrandForm((prev) => ({ ...prev, tone: e.target.value }))}
+                          placeholder="Ex: Autoridade acessível, direto ao ponto, energético e confiável"
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                        />
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {[
+                            'Autoridade acessível e didático',
+                            'Jovem, dinâmico e provocativo',
+                            'Sofisticado, premium e consultivo',
+                            'Direto ao ponto, focado em ROI e resultados',
+                          ].map((presetTone) => (
+                            <button
+                              key={presetTone}
+                              type="button"
+                              onClick={() => setBrandForm((prev) => ({ ...prev, tone: presetTone }))}
+                              className="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-slate-600 dark:text-slate-300 transition-colors"
+                            >
+                              + {presetTone}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                          <Megaphone className="w-4 h-4 inline mr-1 text-brand-500" />
+                          Chamada para Ação (CTA) Padrão
+                        </label>
+                        <input
+                          type="text"
+                          value={brandForm.default_cta}
+                          onChange={(e) => setBrandForm((prev) => ({ ...prev, default_cta: e.target.value }))}
+                          placeholder="Ex: Comente QUERO que te envio o link de diagnóstico no Direct!"
+                          className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                        />
+                        <p className="text-xs text-slate-500 mt-1.5">
+                          A IA priorizará esta chamada no final das legendas e nos gatilhos de AutoDM.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                        <Ban className="w-4 h-4 inline mr-1 text-rose-500" />
+                        Regras de Ouro / O que Evitar (Restrições para a IA)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={brandForm.rules_to_avoid}
+                        onChange={(e) => setBrandForm((prev) => ({ ...prev, rules_to_avoid: e.target.value }))}
+                        placeholder="Ex: Nunca prometa ganhos fáceis; não use gírias infantis; evite textos genéricos estilo robô; nunca cite concorrentes..."
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none resize-y"
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+                      <span className="text-xs text-slate-500">
+                        {brandUpdatedAt
+                          ? `Última atualização do perfil "${selectedBrandProfileName}": ${new Date(
+                              brandUpdatedAt
+                            ).toLocaleString('pt-BR')}`
+                          : `Nenhum contexto salvo ainda para o perfil "${selectedBrandProfileName}".`}
+                      </span>
+
+                      <button
+                        type="submit"
+                        disabled={savingBrand}
+                        className="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-400 text-white rounded-xl text-sm font-semibold transition-colors"
+                      >
+                        {savingBrand ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        Salvar Cérebro da Marca
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              {/* Simulador Rápido: Testar o Cérebro da Marca com Gemini IA */}
+              <div className="bg-gradient-to-br from-violet-50/70 via-indigo-50/40 to-purple-50/50 dark:from-violet-950/20 dark:via-indigo-950/20 dark:to-purple-950/20 rounded-xl border border-violet-200 dark:border-violet-900/60 p-6">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center">
+                    <Wand2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Testar Cérebro da Marca na Prática
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Digite um tema simples e veja como o Gemini IA responde já aplicando o contexto da marca acima.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  <input
+                    type="text"
+                    value={testBrandTopic}
+                    onChange={(e) => setTestBrandTopic(e.target.value)}
+                    placeholder="Ex: Por que a maioria das empresas perde clientes no atendimento pelo WhatsApp..."
+                    className="flex-1 px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={testingBrandAi}
+                    onClick={handleTestBrandAi}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-all"
+                  >
+                    {testingBrandAi ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Gerando com Contexto...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        Testar IA com Marca
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {testBrandResult && (
+                  <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2.5">
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                        Título Gerado
+                      </span>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
+                        {testBrandResult.title}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                        Legenda Personalizada com Identidade da Marca
+                      </span>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-line mt-1">
+                        {testBrandResult.description}
+                        {testBrandResult.callToAction ? `\n\n${testBrandResult.callToAction}` : ''}
+                        {testBrandResult.hashtags?.length ? `\n\n${testBrandResult.hashtags.join(' ')}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ABA 3: API */}
           {activeTab === 'api' && (
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
@@ -950,6 +1340,8 @@ export default function SettingsPage() {
                 {[
                   ['GET/PATCH/DELETE', '/api/auth/me', 'Dados da conta logada, senha e sessões'],
                   ['GET/POST/PATCH/DELETE', '/api/users', 'Gestão de contas reais de usuários'],
+                  ['GET/PUT', '/api/brand-profile', 'Cérebro da Marca (Brand Context) vinculado ao perfil'],
+                  ['POST', '/api/ai/generate', 'Geração de copy/roteiro Gemini IA com Cérebro da Marca'],
                   ['GET/POST/PATCH/DELETE', '/api/profiles', 'Gestão de clientes (perfis) do usuário'],
                   ['GET/POST/DELETE', '/api/accounts', 'Lista, sincroniza OAuth e desconecta contas sociais'],
                   ['POST', '/api/publish', 'Publica/agenda (multipart)'],

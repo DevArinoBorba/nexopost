@@ -38,6 +38,21 @@ function runMigrations(db: Database.Database) {
   if (!sessionCols.includes('created_at')) db.exec('ALTER TABLE sessions ADD COLUMN created_at TEXT');
   if (!sessionCols.includes('user_agent')) db.exec('ALTER TABLE sessions ADD COLUMN user_agent TEXT');
   if (!sessionCols.includes('ip_address')) db.exec('ALTER TABLE sessions ADD COLUMN ip_address TEXT');
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS brand_profiles (
+      profile_id            TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+      company_name          TEXT NOT NULL DEFAULT '',
+      niche                 TEXT NOT NULL DEFAULT '',
+      location              TEXT NOT NULL DEFAULT '',
+      target_audience       TEXT NOT NULL DEFAULT '',
+      unique_selling_points TEXT NOT NULL DEFAULT '',
+      tone                  TEXT NOT NULL DEFAULT '',
+      default_cta           TEXT NOT NULL DEFAULT '',
+      rules_to_avoid        TEXT NOT NULL DEFAULT '',
+      updated_at            TEXT NOT NULL
+    );
+  `);
 }
 
 function init(): Database.Database {
@@ -1135,4 +1150,93 @@ export function seedAutoDMDefaultsIfEmpty(profileId: string) {
     // se banco não inicializado ainda, ignora
   }
 }
+
+// ============================================================
+// Cérebro da Marca (Brand Context) vinculado aos Perfis
+// ============================================================
+
+export interface BrandProfile {
+  profile_id: string;
+  company_name: string;
+  niche: string;
+  location: string;
+  target_audience: string;
+  unique_selling_points: string;
+  tone: string;
+  default_cta: string;
+  rules_to_avoid: string;
+  updated_at: string;
+}
+
+export function getBrandProfile(profileId: string): BrandProfile {
+  const row = db
+    .prepare('SELECT * FROM brand_profiles WHERE profile_id = ?')
+    .get(profileId) as BrandProfile | undefined;
+
+  if (row) return row;
+
+  return {
+    profile_id: profileId,
+    company_name: '',
+    niche: '',
+    location: '',
+    target_audience: '',
+    unique_selling_points: '',
+    tone: '',
+    default_cta: '',
+    rules_to_avoid: '',
+    updated_at: '',
+  };
+}
+
+export function upsertBrandProfile(data: {
+  profile_id: string;
+  company_name?: string;
+  niche?: string;
+  location?: string;
+  target_audience?: string;
+  unique_selling_points?: string;
+  tone?: string;
+  default_cta?: string;
+  rules_to_avoid?: string;
+}): BrandProfile {
+  const current = getBrandProfile(data.profile_id);
+  const updated: BrandProfile = {
+    profile_id: data.profile_id,
+    company_name: (data.company_name ?? current.company_name).trim(),
+    niche: (data.niche ?? current.niche).trim(),
+    location: (data.location ?? current.location).trim(),
+    target_audience: (data.target_audience ?? current.target_audience).trim(),
+    unique_selling_points: (data.unique_selling_points ?? current.unique_selling_points).trim(),
+    tone: (data.tone ?? current.tone).trim(),
+    default_cta: (data.default_cta ?? current.default_cta).trim(),
+    rules_to_avoid: (data.rules_to_avoid ?? current.rules_to_avoid).trim(),
+    updated_at: now(),
+  };
+
+  db.prepare(
+    `
+    INSERT INTO brand_profiles (
+      profile_id, company_name, niche, location, target_audience,
+      unique_selling_points, tone, default_cta, rules_to_avoid, updated_at
+    ) VALUES (
+      @profile_id, @company_name, @niche, @location, @target_audience,
+      @unique_selling_points, @tone, @default_cta, @rules_to_avoid, @updated_at
+    )
+    ON CONFLICT(profile_id) DO UPDATE SET
+      company_name          = excluded.company_name,
+      niche                 = excluded.niche,
+      location              = excluded.location,
+      target_audience       = excluded.target_audience,
+      unique_selling_points = excluded.unique_selling_points,
+      tone                  = excluded.tone,
+      default_cta           = excluded.default_cta,
+      rules_to_avoid        = excluded.rules_to_avoid,
+      updated_at            = excluded.updated_at
+  `
+  ).run(updated);
+
+  return updated;
+}
+
 

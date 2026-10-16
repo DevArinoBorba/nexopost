@@ -73,6 +73,8 @@ export interface ScheduledPostView {
   scheduled_date: string;
   post_type: string;
   title: string | null;
+  description?: string | null;
+  source_filename?: string | null;
   platforms: string[];
 }
 
@@ -371,7 +373,7 @@ export const backend = {
     }).then(json<AudienceResponse>),
 
   // ----- Gemini AI -----
-  generateAICopy: (data: { topic: string; platform?: string; tone?: string; duration?: number }) =>
+  generateAICopy: (data: { topic: string; platform?: string; tone?: string; duration?: number; profile_id?: string }) =>
     fetch('/api/ai/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -385,10 +387,57 @@ export const backend = {
           description: string;
           callToAction?: string;
           hashtags: string[];
+          brandContextUsed?: boolean;
+        };
+        brandProfile?: {
+          profile_id: string;
+          company_name: string;
+          hasContext: boolean;
         };
       }>
     ),
+
+  // ----- Cérebro da Marca (Brand Context) -----
+  getBrandProfile: (profileId?: string) =>
+    fetch(
+      `/api/brand-profile${profileId ? `?profile_id=${encodeURIComponent(profileId)}` : ''}`,
+      { cache: 'no-store' }
+    ).then(
+      json<{
+        success: boolean;
+        profile: { id: string; username: string };
+        activeProfileId: string;
+        profiles: { id: string; username: string }[];
+        brandProfile: BrandProfileView;
+      }>
+    ),
+
+  saveBrandProfile: (data: Partial<BrandProfileView> & { profile_id?: string }) =>
+    fetch('/api/brand-profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(
+      json<{
+        success: boolean;
+        profile: { id: string; username: string };
+        brandProfile: BrandProfileView;
+      }>
+    ),
 };
+
+export interface BrandProfileView {
+  profile_id: string;
+  company_name: string;
+  niche: string;
+  location: string;
+  target_audience: string;
+  unique_selling_points: string;
+  tone: string;
+  default_cta: string;
+  rules_to_avoid: string;
+  updated_at: string;
+}
 
 export interface AutoDMRuleView {
   id: string;
