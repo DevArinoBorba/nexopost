@@ -54,12 +54,10 @@ export default function BrandLogo({
   }
 
   const markSize =
-    size === 'sm' ? 'w-8 h-8' : size === 'lg' ? 'w-12 h-12' : 'w-10 h-10';
-  const textSize =
-    size === 'sm' ? 'text-lg' : size === 'lg' ? 'text-2xl' : 'text-xl';
+    size === 'sm' ? 'w-9 h-9' : size === 'lg' ? 'w-12 h-12' : 'w-11 h-11';
 
   return (
-    <div className={`inline-flex items-center gap-2.5 ${className}`}>
+    <div className={`inline-flex items-center ${className}`}>
       {tone === 'light' && (
         <img
           src="/logo-mark-light.png"
@@ -87,27 +85,6 @@ export default function BrandLogo({
             className={`${markSize} object-contain select-none shrink-0 hidden dark:block`}
           />
         </>
-      )}
-
-      {layout === 'horizontal' && (
-        <div className="flex items-baseline gap-2">
-          <span
-            className={`${textSize} font-bold tracking-tight lowercase ${
-              tone === 'light'
-                ? 'text-white'
-                : tone === 'dark'
-                  ? 'text-slate-950'
-                  : 'text-slate-950 dark:text-white'
-            }`}
-          >
-            nexopost
-          </span>
-          {subtitle && (
-            <span className="hidden sm:inline-block text-xs font-medium text-slate-500 dark:text-slate-400">
-              {subtitle}
-            </span>
-          )}
-        </div>
       )}
     </div>
   );
