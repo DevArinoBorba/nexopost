@@ -15,6 +15,16 @@ services:
     networks:
       - coolify
     labels:
+      - coolify.managed=true
+      - coolify.version=4.4.6
+      - coolify.type=application
+      - coolify.applicationUuid=o810d1crws8j756goqu43shw
+      - coolify.name=o810d1crws8j756goqu43shw
+      - coolify.projectName=nexopost
+      - coolify.environmentName=production
+      - coolify.resourceName=nexopost
+      - coolify.serviceName=nexopost
+      - coolify.pullRequestId=0
       - traefik.enable=true
       - traefik.http.routers.nexopost.rule=Host(`nexopost.oriumdigital.tech`)
       - traefik.http.routers.nexopost.entrypoints=https
