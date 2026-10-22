@@ -10,6 +10,26 @@ import readline from 'readline';
 
 const BASE_URL = (process.env.NEXOPOST_BASE_URL || 'https://nexopost.oriumdigital.tech').replace(/\/+$/, '');
 const DEFAULT_API_KEY = (process.env.NEXOPOST_DEFAULT_API_KEY || '').trim();
+const KEYS_FILE = process.env.NEXOPOST_KEYS_FILE || '/root/.hermes/nexopost_keys.json';
+
+function normalizeStr(s) {
+  return String(s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function loadKeysMap() {
+  try {
+    if (fs.existsSync(KEYS_FILE)) {
+      return JSON.parse(fs.readFileSync(KEYS_FILE, 'utf8')) || {};
+    }
+  } catch {
+    // ignore
+  }
+  return {};
+}
 
 const TOOLS = [
   {
@@ -19,10 +39,15 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
+        client_name: {
+          type: 'string',
+          description:
+            'Nome do cliente/perfil no NexoPost (ex: "Gordinho Celulares CG", "Gordinho Celulares Itajai", "Black Shark Imports", "default"). Resolve a chave automaticamente.',
+        },
         client_api_key: {
           type: 'string',
           description:
-            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se NEXOPOST_DEFAULT_API_KEY estiver configurada.',
+            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se client_name for informado.',
         },
         media_path: {
           type: 'string',
@@ -75,10 +100,15 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
+        client_name: {
+          type: 'string',
+          description:
+            'Nome do cliente/perfil no NexoPost (ex: "Gordinho Celulares CG", "Gordinho Celulares Itajai", "Black Shark Imports", "default"). Resolve a chave automaticamente.',
+        },
         client_api_key: {
           type: 'string',
           description:
-            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se NEXOPOST_DEFAULT_API_KEY estiver configurada.',
+            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se client_name for informado.',
         },
         status: {
           type: 'string',
@@ -100,10 +130,15 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
+        client_name: {
+          type: 'string',
+          description:
+            'Nome do cliente/perfil no NexoPost (ex: "Gordinho Celulares CG", "Gordinho Celulares Itajai", "Black Shark Imports", "default"). Resolve a chave automaticamente.',
+        },
         client_api_key: {
           type: 'string',
           description:
-            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se NEXOPOST_DEFAULT_API_KEY estiver configurada.',
+            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se client_name for informado.',
         },
         platform: {
           type: 'string',
@@ -126,10 +161,15 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
+        client_name: {
+          type: 'string',
+          description:
+            'Nome do cliente/perfil no NexoPost (ex: "Gordinho Celulares CG", "Gordinho Celulares Itajai", "Black Shark Imports", "default"). Resolve a chave automaticamente.',
+        },
         client_api_key: {
           type: 'string',
           description:
-            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se NEXOPOST_DEFAULT_API_KEY estiver configurada.',
+            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se client_name for informado.',
         },
       },
       required: [],
@@ -138,13 +178,41 @@ const TOOLS = [
 ];
 
 function resolveApiKey(args) {
-  const key = String(args?.client_api_key || DEFAULT_API_KEY || '').trim();
-  if (!key) {
-    throw new Error(
-      'Chave de API do cliente ausente. Informe "client_api_key" (nex_live_...) ou configure NEXOPOST_DEFAULT_API_KEY.'
-    );
+  const rawKey = String(args?.client_api_key || '').trim();
+  if (rawKey.startsWith('nex_')) {
+    return rawKey;
   }
-  return key;
+
+  const clientQuery = normalizeStr(args?.client_name || rawKey);
+  const keysMap = loadKeysMap();
+  const entries = Object.entries(keysMap);
+
+  if (clientQuery && entries.length > 0) {
+    // Match exato primeiro
+    for (const [profileName, key] of entries) {
+      if (normalizeStr(profileName) === clientQuery && String(key).startsWith('nex_')) {
+        return String(key);
+      }
+    }
+    // Match parcial
+    for (const [profileName, key] of entries) {
+      const normProfile = normalizeStr(profileName);
+      if ((normProfile.includes(clientQuery) || clientQuery.includes(normProfile)) && String(key).startsWith('nex_')) {
+        return String(key);
+      }
+    }
+  }
+
+  if (DEFAULT_API_KEY) {
+    return DEFAULT_API_KEY;
+  }
+
+  const availableClients = entries.map(([name]) => name).join(', ');
+  throw new Error(
+    `Chave de API do cliente não localizada para "${args?.client_name || rawKey || 'vazio'}". Clientes disponíveis no cofre NexoPost: ${
+      availableClients || 'nenhum'
+    }.`
+  );
 }
 
 function guessMimeType(filename) {
