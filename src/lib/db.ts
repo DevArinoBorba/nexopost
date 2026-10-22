@@ -65,6 +65,28 @@ function runMigrations(db: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_api_keys_token ON api_keys(token_hash);
     CREATE INDEX IF NOT EXISTS idx_api_keys_profile ON api_keys(profile_id);
+
+    CREATE TABLE IF NOT EXISTS whatsapp_links (
+      id                TEXT PRIMARY KEY,
+      user_id           TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      scope             TEXT NOT NULL DEFAULT 'user',
+      profile_id        TEXT REFERENCES profiles(id) ON DELETE CASCADE,
+      phone_raw         TEXT NOT NULL,
+      phone_normalized  TEXT NOT NULL,
+      phone_alt         TEXT,
+      whatsapp_lid      TEXT,
+      label             TEXT NOT NULL,
+      status            TEXT NOT NULL DEFAULT 'pending',
+      verification_code TEXT,
+      code_expires_at   TEXT,
+      verified_at       TEXT,
+      last_used_at      TEXT,
+      tokens_json       TEXT,
+      created_at        TEXT NOT NULL,
+      updated_at        TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_links_user ON whatsapp_links(user_id);
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_links_phone ON whatsapp_links(phone_normalized);
   `);
 }
 
@@ -1370,6 +1392,348 @@ export function authenticateApiKey(rawToken: string): {
     user,
   };
 }
+
+// ============================================================
+// Vínculo e Verificação de WhatsApp (Integração Direta Hermes)
+// ============================================================
+
+export interface WhatsAppLinkRecord {
+  id: string;
+  user_id: string;
+  scope: 'user' | 'profile';
+  profile_id: string | null;
+  profile_name?: string | null;
+  phone_raw: string;
+  phone_normalized: string;
+  phone_alt: string | null;
+  whatsapp_lid: string | null;
+  label: string;
+  status: 'pending' | 'verified';
+  verification_code: string | null;
+  code_expires_at: string | null;
+  verified_at: string | null;
+  last_used_at: string | null;
+  tokens_json: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PublicWhatsAppLink = Omit<WhatsAppLinkRecord, 'verification_code' | 'tokens_json'> & {
+  allowed_profiles: { id: string; username: string; platforms: string[] }[];
+};
+
+export function normalizePhoneVariants(input: string): { primary: string; alt: string | null } {
+  let digits = String(input || '').replace(/\D+/g, '');
+  if (!digits) return { primary: '', alt: null };
+
+  // Se digitou DDD + número sem DDI 55 (10 ou 11 dígitos no Brasil)
+  if (digits.length === 10 || digits.length === 11) {
+    digits = '55' + digits;
+  }
+
+  let alt: string | null = null;
+  // Números do Brasil (55 + 2 dígitos DDD + 8 ou 9 dígitos)
+  if (digits.startsWith('55')) {
+    const rest = digits.slice(4); // após 55 + DDD
+    const ddd = digits.slice(2, 4);
+    if (rest.length === 9 && rest.startsWith('9')) {
+      alt = `55${ddd}${rest.slice(1)}`; // versão de 8 dígitos usada pelo WhatsApp em vários DDDs
+    } else if (rest.length === 8) {
+      alt = `55${ddd}9${rest}`; // versão de 9 dígitos
+    }
+  }
+
+  return { primary: digits, alt };
+}
+
+export function createOrUpdatePendingWhatsAppLink(data: {
+  user_id: string;
+  scope: 'user' | 'profile';
+  profile_id?: string | null;
+  phone: string;
+  label?: string;
+}): { link: PublicWhatsAppLink; code: string } {
+  const { primary, alt } = normalizePhoneVariants(data.phone);
+  if (primary.length < 10) {
+    throw new Error('Informe um número de WhatsApp válido com DDD (ex: 5567981108176).');
+  }
+
+  const scope: 'user' | 'profile' = data.scope === 'profile' && data.profile_id ? 'profile' : 'user';
+  const profileId = scope === 'profile' ? data.profile_id || null : null;
+  const code = String(crypto.randomInt(100000, 999999));
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const ts = now();
+
+  const existing = db
+    .prepare('SELECT * FROM whatsapp_links WHERE user_id = ? AND phone_normalized = ?')
+    .get(data.user_id, primary) as WhatsAppLinkRecord | undefined;
+
+  const label =
+    data.label?.trim() ||
+    (scope === 'profile' && profileId
+      ? `WhatsApp (${getProfileById(profileId)?.username || 'Perfil'})`
+      : 'WhatsApp da Conta');
+
+  let id = existing?.id || randomId();
+  if (existing) {
+    db.prepare(
+      `UPDATE whatsapp_links SET
+        scope = @scope,
+        profile_id = @profile_id,
+        phone_raw = @phone_raw,
+        phone_normalized = @phone_normalized,
+        phone_alt = @phone_alt,
+        label = @label,
+        status = 'pending',
+        verification_code = @verification_code,
+        code_expires_at = @code_expires_at,
+        updated_at = @updated_at
+       WHERE id = @id`
+    ).run({
+      id,
+      scope,
+      profile_id: profileId,
+      phone_raw: data.phone.trim(),
+      phone_normalized: primary,
+      phone_alt: alt,
+      label,
+      verification_code: code,
+      code_expires_at: expiresAt,
+      updated_at: ts,
+    });
+  } else {
+    db.prepare(
+      `INSERT INTO whatsapp_links (
+        id, user_id, scope, profile_id, phone_raw, phone_normalized, phone_alt,
+        whatsapp_lid, label, status, verification_code, code_expires_at,
+        verified_at, last_used_at, tokens_json, created_at, updated_at
+      ) VALUES (
+        @id, @user_id, @scope, @profile_id, @phone_raw, @phone_normalized, @phone_alt,
+        NULL, @label, 'pending', @verification_code, @code_expires_at,
+        NULL, NULL, NULL, @created_at, @updated_at
+      )`
+    ).run({
+      id,
+      user_id: data.user_id,
+      scope,
+      profile_id: profileId,
+      phone_raw: data.phone.trim(),
+      phone_normalized: primary,
+      phone_alt: alt,
+      label,
+      verification_code: code,
+      code_expires_at: expiresAt,
+      created_at: ts,
+      updated_at: ts,
+    });
+  }
+
+  const link = listWhatsAppLinks(data.user_id).find((l) => l.id === id)!;
+  return { link, code };
+}
+
+export function setWhatsAppLinkLid(id: string, lid: string | null): void {
+  if (!lid) return;
+  db.prepare('UPDATE whatsapp_links SET whatsapp_lid = ?, updated_at = ? WHERE id = ?').run(lid, now(), id);
+}
+
+export function verifyWhatsAppLinkCode(
+  userId: string,
+  linkId: string,
+  codeInput: string
+): PublicWhatsAppLink {
+  const row = db
+    .prepare('SELECT * FROM whatsapp_links WHERE id = ? AND user_id = ?')
+    .get(linkId, userId) as WhatsAppLinkRecord | undefined;
+
+  if (!row) {
+    throw new Error('Solicitação de vínculo não encontrada.');
+  }
+
+  const cleanCode = String(codeInput || '').replace(/\D+/g, '');
+  if (!row.verification_code || row.verification_code !== cleanCode) {
+    throw new Error('Código de verificação incorreto.');
+  }
+
+  if (row.code_expires_at && new Date(row.code_expires_at) < new Date()) {
+    throw new Error('O código expirou. Solicite um novo código.');
+  }
+
+  // Gerar chaves de API exclusivas para os perfis permitidos por este vínculo
+  const targetProfiles =
+    row.scope === 'profile' && row.profile_id
+      ? [getProfileById(row.profile_id)].filter(Boolean) as Profile[]
+      : getProfiles(userId);
+
+  const tokensMap: Record<string, { profile_id: string; profile_name: string; api_key: string }> = {};
+  for (const prof of targetProfiles) {
+    const keyName = `Hermes WhatsApp (${row.phone_normalized}) - ${prof.username}`;
+    // Remove chave anterior do mesmo WhatsApp + perfil para não acumular
+    db.prepare('DELETE FROM api_keys WHERE user_id = ? AND profile_id = ? AND name = ?').run(
+      userId,
+      prof.id,
+      keyName
+    );
+    const created = createApiKey({
+      user_id: userId,
+      profile_id: prof.id,
+      name: keyName,
+    });
+    tokensMap[prof.id] = {
+      profile_id: prof.id,
+      profile_name: prof.username,
+      api_key: created.rawToken,
+    };
+  }
+
+  const ts = now();
+  db.prepare(
+    `UPDATE whatsapp_links SET
+      status = 'verified',
+      verification_code = NULL,
+      code_expires_at = NULL,
+      verified_at = @verified_at,
+      tokens_json = @tokens_json,
+      updated_at = @updated_at
+     WHERE id = @id`
+  ).run({
+    id: row.id,
+    verified_at: ts,
+    tokens_json: JSON.stringify(tokensMap),
+    updated_at: ts,
+  });
+
+  syncHermesWhatsAppPermissionsFile();
+  return listWhatsAppLinks(userId).find((l) => l.id === row.id)!;
+}
+
+export function deleteWhatsAppLink(id: string, userId: string): boolean {
+  const row = db
+    .prepare('SELECT * FROM whatsapp_links WHERE id = ? AND user_id = ?')
+    .get(id, userId) as WhatsAppLinkRecord | undefined;
+  if (!row) return false;
+
+  // Revogar também as API keys criadas para este vínculo de WhatsApp
+  const prefix = `Hermes WhatsApp (${row.phone_normalized})%`;
+  db.prepare('DELETE FROM api_keys WHERE user_id = ? AND name LIKE ?').run(userId, prefix);
+
+  const res = db.prepare('DELETE FROM whatsapp_links WHERE id = ? AND user_id = ?').run(id, userId);
+  syncHermesWhatsAppPermissionsFile();
+  return res.changes > 0;
+}
+
+export function listWhatsAppLinks(userId: string): PublicWhatsAppLink[] {
+  const rows = db
+    .prepare(
+      `SELECT l.*, p.username as profile_name
+       FROM whatsapp_links l
+       LEFT JOIN profiles p ON p.id = l.profile_id
+       WHERE l.user_id = ?
+       ORDER BY l.created_at DESC`
+    )
+    .all(userId) as WhatsAppLinkRecord[];
+
+  const userProfiles = getProfilesWithCounts(userId);
+
+  return rows.map((r) => {
+    const allowed =
+      r.scope === 'profile' && r.profile_id
+        ? userProfiles.filter((p) => p.id === r.profile_id)
+        : userProfiles;
+
+    const { verification_code: _vc, tokens_json: _tj, ...pub } = r;
+    return {
+      ...pub,
+      allowed_profiles: allowed.map((p) => ({
+        id: p.id,
+        username: p.username,
+        platforms: p.platforms,
+      })),
+    };
+  });
+}
+
+export function syncHermesWhatsAppPermissionsFile(): void {
+  try {
+    const verifiedRows = db
+      .prepare("SELECT * FROM whatsapp_links WHERE status = 'verified'")
+      .all() as WhatsAppLinkRecord[];
+
+    const links = verifiedRows.map((r) => {
+      const user = getUserById(r.user_id);
+      const userProfiles = getProfilesWithCounts(r.user_id);
+      const allowedProfiles =
+        r.scope === 'profile' && r.profile_id
+          ? userProfiles.filter((p) => p.id === r.profile_id)
+          : userProfiles;
+
+      let tokensMap: Record<string, { profile_id: string; profile_name: string; api_key: string }> = {};
+      try {
+        tokensMap = r.tokens_json ? JSON.parse(r.tokens_json) : {};
+      } catch {
+        tokensMap = {};
+      }
+
+      // Se o usuário criou algum perfil novo depois de verificar o WhatsApp (quando scope === 'user'), gera chave automaticamente
+      let updatedTokens = false;
+      for (const prof of allowedProfiles) {
+        if (!tokensMap[prof.id]?.api_key) {
+          const keyName = `Hermes WhatsApp (${r.phone_normalized}) - ${prof.username}`;
+          db.prepare('DELETE FROM api_keys WHERE user_id = ? AND profile_id = ? AND name = ?').run(
+            r.user_id,
+            prof.id,
+            keyName
+          );
+          const created = createApiKey({
+            user_id: r.user_id,
+            profile_id: prof.id,
+            name: keyName,
+          });
+          tokensMap[prof.id] = {
+            profile_id: prof.id,
+            profile_name: prof.username,
+            api_key: created.rawToken,
+          };
+          updatedTokens = true;
+        }
+      }
+      if (updatedTokens) {
+        db.prepare('UPDATE whatsapp_links SET tokens_json = ? WHERE id = ?').run(
+          JSON.stringify(tokensMap),
+          r.id
+        );
+      }
+
+      return {
+        link_id: r.id,
+        user_id: r.user_id,
+        user_name: user?.name || '',
+        user_email: user?.email || '',
+        scope: r.scope,
+        phone_normalized: r.phone_normalized,
+        phone_alt: r.phone_alt,
+        whatsapp_lid: r.whatsapp_lid,
+        verified_at: r.verified_at,
+        profiles: allowedProfiles.map((p) => ({
+          profile_id: p.id,
+          profile_name: p.username,
+          platforms: p.platforms,
+          api_key: tokensMap[p.id]?.api_key || '',
+        })),
+      };
+    });
+
+    const outPath = path.join(DATA_DIR, 'hermes_whatsapp_permissions.json');
+    fs.writeFileSync(
+      outPath,
+      JSON.stringify({ updated_at: now(), verified_links: links }, null, 2),
+      'utf8'
+    );
+  } catch (err) {
+    console.error('Erro ao sincronizar hermes_whatsapp_permissions.json:', err);
+  }
+}
+
 
 
 

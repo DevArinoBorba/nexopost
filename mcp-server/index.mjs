@@ -2,6 +2,7 @@
 /**
  * NexoPost MCP Server (Model Context Protocol over stdio)
  * Conecta o Agente Hermes ao NexoPost REST API v1 (/api/v1/*)
+ * com controle de acesso estrito por número de WhatsApp verificado.
  */
 
 import fs from 'fs';
@@ -11,6 +12,9 @@ import readline from 'readline';
 const BASE_URL = (process.env.NEXOPOST_BASE_URL || 'https://nexopost.oriumdigital.tech').replace(/\/+$/, '');
 const DEFAULT_API_KEY = (process.env.NEXOPOST_DEFAULT_API_KEY || '').trim();
 const KEYS_FILE = process.env.NEXOPOST_KEYS_FILE || '/root/.hermes/nexopost_keys.json';
+const PERMISSIONS_FILE =
+  process.env.NEXOPOST_WHATSAPP_PERMISSIONS_FILE || '/data/nexopost/data/hermes_whatsapp_permissions.json';
+const SESSION_DIR = process.env.HERMES_WHATSAPP_SESSION_DIR || '/root/.hermes/whatsapp/session';
 
 function normalizeStr(s) {
   return String(s || '')
@@ -18,6 +22,59 @@ function normalizeStr(s) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+}
+
+function normalizePhoneVariants(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return [];
+
+  // Se for um @lid (ex: 72736059699239@lid), tenta resolver no lid-mapping reverso do Baileys
+  const lidMatch = raw.match(/^(\d+)@lid$/i);
+  let digits = raw.replace(/@.*$/, '').replace(/\D+/g, '');
+
+  if (lidMatch) {
+    const lidNum = lidMatch[1];
+    const reverseFile = path.join(SESSION_DIR, `lid-mapping-${lidNum}_reverse.json`);
+    if (fs.existsSync(reverseFile)) {
+      try {
+        const mappedPhone = JSON.parse(fs.readFileSync(reverseFile, 'utf8'));
+        if (mappedPhone) {
+          digits = String(mappedPhone).replace(/\D+/g, '');
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  if (!digits) return [raw.toLowerCase()];
+  if (digits.length === 10 || digits.length === 11) {
+    digits = '55' + digits;
+  }
+
+  const variants = new Set([digits, raw.toLowerCase()]);
+  if (digits.startsWith('55')) {
+    const ddd = digits.slice(2, 4);
+    const rest = digits.slice(4);
+    if (rest.length === 9 && rest.startsWith('9')) {
+      variants.add(`55${ddd}${rest.slice(1)}`);
+    } else if (rest.length === 8) {
+      variants.add(`55${ddd}9${rest}`);
+    }
+  }
+  return Array.from(variants);
+}
+
+function loadPermissionsData() {
+  try {
+    if (fs.existsSync(PERMISSIONS_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(PERMISSIONS_FILE, 'utf8'));
+      return Array.isArray(parsed?.verified_links) ? parsed.verified_links : [];
+    }
+  } catch {
+    // ignore
+  }
+  return [];
 }
 
 function loadKeysMap() {
@@ -31,23 +88,143 @@ function loadKeysMap() {
   return {};
 }
 
+function findSenderLink(senderWhatsapp) {
+  const variants = normalizePhoneVariants(senderWhatsapp);
+  if (variants.length === 0) return null;
+
+  const verifiedLinks = loadPermissionsData();
+  for (const link of verifiedLinks) {
+    const linkCandidates = [
+      link.phone_normalized,
+      link.phone_alt,
+      link.whatsapp_lid ? String(link.whatsapp_lid).toLowerCase() : null,
+      link.whatsapp_lid ? String(link.whatsapp_lid).replace(/@.*$/, '') : null,
+    ].filter(Boolean);
+
+    if (variants.some((v) => linkCandidates.includes(v))) {
+      return link;
+    }
+  }
+  return null;
+}
+
+function resolveApiKey(args) {
+  const senderWhatsapp = String(args?.sender_whatsapp || '').trim();
+  const verifiedLinks = loadPermissionsData();
+
+  // Se já existem vínculos verificados ou se sender_whatsapp foi informado, aplica o controle por WhatsApp
+  if (senderWhatsapp || verifiedLinks.length > 0) {
+    if (!senderWhatsapp) {
+      throw new Error(
+        'Informe o parâmetro obrigatório "sender_whatsapp" (número ou @lid de quem enviou a mensagem no WhatsApp) para validar as permissões da conta no NexoPost.'
+      );
+    }
+
+    const link = findSenderLink(senderWhatsapp);
+    if (!link) {
+      throw new Error(
+        `O número/remetente "${senderWhatsapp}" não possui vínculo verificado no NexoPost. Para liberar o acesso, acesse https://nexopost.oriumdigital.tech/settings?tab=api, cadastre o número de WhatsApp e confirme o código de 6 dígitos enviado pelo Hermes.`
+      );
+    }
+
+    const allowedProfiles = Array.isArray(link.profiles) ? link.profiles : [];
+    if (allowedProfiles.length === 0) {
+      throw new Error(
+        `O WhatsApp +${link.phone_normalized} está verificado, mas não possui nenhum perfil com chave ativa.`
+      );
+    }
+
+    const clientQuery = normalizeStr(args?.client_name || '');
+    if (!clientQuery) {
+      if (allowedProfiles.length === 1) {
+        return allowedProfiles[0].api_key;
+      }
+      const def = allowedProfiles.find((p) => normalizeStr(p.profile_name) === 'default') || allowedProfiles[0];
+      return def.api_key;
+    }
+
+    // Match exato dentro dos perfis permitidos para este WhatsApp
+    for (const p of allowedProfiles) {
+      if (normalizeStr(p.profile_name) === clientQuery && p.api_key) {
+        return p.api_key;
+      }
+    }
+    // Match parcial dentro dos perfis permitidos para este WhatsApp
+    for (const p of allowedProfiles) {
+      const normName = normalizeStr(p.profile_name);
+      if ((normName.includes(clientQuery) || clientQuery.includes(normName)) && p.api_key) {
+        return p.api_key;
+      }
+    }
+
+    const allowedNames = allowedProfiles.map((p) => p.profile_name).join(', ');
+    throw new Error(
+      `Acesso negado: o WhatsApp +${link.phone_normalized} (${link.user_name}) não tem permissão para acessar o perfil "${args?.client_name}". Perfis liberados para este WhatsApp: ${allowedNames}.`
+    );
+  }
+
+  // Fallback legado caso ainda não haja vínculos na tabela whatsapp_links
+  const rawKey = String(args?.client_api_key || '').trim();
+  if (rawKey.startsWith('nex_')) {
+    return rawKey;
+  }
+
+  const clientQuery = normalizeStr(args?.client_name || rawKey);
+  const keysMap = loadKeysMap();
+  const entries = Object.entries(keysMap);
+
+  if (clientQuery && entries.length > 0) {
+    for (const [profileName, key] of entries) {
+      if (normalizeStr(profileName) === clientQuery && String(key).startsWith('nex_')) {
+        return String(key);
+      }
+    }
+    for (const [profileName, key] of entries) {
+      const normProfile = normalizeStr(profileName);
+      if ((normProfile.includes(clientQuery) || clientQuery.includes(normProfile)) && String(key).startsWith('nex_')) {
+        return String(key);
+      }
+    }
+  }
+
+  if (DEFAULT_API_KEY) return DEFAULT_API_KEY;
+
+  throw new Error('Chave de API ou vínculo de WhatsApp não encontrado.');
+}
+
 const TOOLS = [
   {
-    name: 'nexopost_schedule_post',
+    name: 'nexopost_my_access',
     description:
-      'Agenda ou publica imediatamente uma publicação (vídeo, foto ou texto) para um cliente no NexoPost nas redes sociais selecionadas (Instagram, Facebook, YouTube, TikTok). Se media_path apontar para um arquivo local na VPS, o MCP faz o upload binário automaticamente.',
+      'Verifica se o número de WhatsApp do remetente está vinculado e verificado no NexoPost e retorna exatamente quais perfis (clientes) e redes sociais ele tem permissão para publicar.',
     inputSchema: {
       type: 'object',
       properties: {
+        sender_whatsapp: {
+          type: 'string',
+          description:
+            'Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp (ex: "5567981108176", "556781108176@s.whatsapp.net" ou "72736059699239@lid").',
+        },
+      },
+      required: ['sender_whatsapp'],
+    },
+  },
+  {
+    name: 'nexopost_schedule_post',
+    description:
+      'Agenda ou publica imediatamente uma publicação (vídeo, foto ou texto) no NexoPost apenas nas contas sociais vinculadas ao WhatsApp do remetente. Se media_path apontar para um arquivo local na VPS, o MCP faz o upload binário automaticamente.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sender_whatsapp: {
+          type: 'string',
+          description:
+            'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp (ex: "5567981108176" ou "72736059699239@lid"). O sistema valida se esse número tem permissão para publicar no perfil solicitado.',
+        },
         client_name: {
           type: 'string',
           description:
-            'Nome do cliente/perfil no NexoPost (ex: "Gordinho Celulares CG", "Gordinho Celulares Itajai", "Black Shark Imports", "default"). Resolve a chave automaticamente.',
-        },
-        client_api_key: {
-          type: 'string',
-          description:
-            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se client_name for informado.',
+            'Nome do cliente/perfil no NexoPost liberado para este WhatsApp (ex: "Gordinho Celulares CG", "Black Shark Imports"). Opcional se o WhatsApp estiver vinculado a um único perfil.',
         },
         media_path: {
           type: 'string',
@@ -72,7 +249,7 @@ const TOOLS = [
             type: 'string',
             enum: ['instagram', 'facebook', 'youtube', 'tiktok'],
           },
-          description: 'Lista de redes sociais onde o conteúdo será publicado.',
+          description: 'Lista de redes sociais conectadas onde o conteúdo será publicado.',
         },
         scheduled_at: {
           type: 'string',
@@ -90,25 +267,24 @@ const TOOLS = [
           description: 'Tipo de mídia (detectado automaticamente pela extensão se omitido).',
         },
       },
-      required: ['title', 'description', 'platforms'],
+      required: ['sender_whatsapp', 'title', 'description', 'platforms'],
     },
   },
   {
     name: 'nexopost_list_schedule',
     description:
-      'Consulta a fila de postagens agendadas de um cliente no NexoPost (ou cancela um agendamento específico se cancel_post_id for informado).',
+      'Consulta a fila de postagens agendadas de um perfil liberado para o WhatsApp do remetente (ou cancela um agendamento específico se cancel_post_id for informado).',
     inputSchema: {
       type: 'object',
       properties: {
+        sender_whatsapp: {
+          type: 'string',
+          description:
+            'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp.',
+        },
         client_name: {
           type: 'string',
-          description:
-            'Nome do cliente/perfil no NexoPost (ex: "Gordinho Celulares CG", "Gordinho Celulares Itajai", "Black Shark Imports", "default"). Resolve a chave automaticamente.',
-        },
-        client_api_key: {
-          type: 'string',
-          description:
-            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se client_name for informado.',
+          description: 'Nome do cliente/perfil no NexoPost liberado para este WhatsApp.',
         },
         status: {
           type: 'string',
@@ -120,25 +296,24 @@ const TOOLS = [
           description: 'Se informado, cancela/remove o agendamento com este ID.',
         },
       },
-      required: [],
+      required: ['sender_whatsapp'],
     },
   },
   {
     name: 'nexopost_get_metrics',
     description:
-      'Obtém as métricas consolidadas de seguidores, alcance, crescimento, contas conectadas e Cérebro da Marca (Brand Context) do cliente no NexoPost.',
+      'Obtém as métricas consolidadas de seguidores, alcance, crescimento, contas conectadas e Cérebro da Marca (Brand Context) de um perfil liberado para o WhatsApp do remetente.',
     inputSchema: {
       type: 'object',
       properties: {
+        sender_whatsapp: {
+          type: 'string',
+          description:
+            'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp.',
+        },
         client_name: {
           type: 'string',
-          description:
-            'Nome do cliente/perfil no NexoPost (ex: "Gordinho Celulares CG", "Gordinho Celulares Itajai", "Black Shark Imports", "default"). Resolve a chave automaticamente.',
-        },
-        client_api_key: {
-          type: 'string',
-          description:
-            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se client_name for informado.',
+          description: 'Nome do cliente/perfil no NexoPost liberado para este WhatsApp.',
         },
         platform: {
           type: 'string',
@@ -151,69 +326,30 @@ const TOOLS = [
           description: 'Período de análise (padrão: 30d).',
         },
       },
-      required: [],
+      required: ['sender_whatsapp'],
     },
   },
   {
     name: 'nexopost_list_accounts',
     description:
-      'Lista as redes sociais conectadas no perfil do cliente no NexoPost, status do token OAuth, contagem de seguidores e diretrizes do Cérebro da Marca.',
+      'Lista as redes sociais conectadas no perfil do cliente no NexoPost, status do token OAuth, contagem de seguidores e diretrizes do Cérebro da Marca liberados para o WhatsApp do remetente.',
     inputSchema: {
       type: 'object',
       properties: {
+        sender_whatsapp: {
+          type: 'string',
+          description:
+            'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp.',
+        },
         client_name: {
           type: 'string',
-          description:
-            'Nome do cliente/perfil no NexoPost (ex: "Gordinho Celulares CG", "Gordinho Celulares Itajai", "Black Shark Imports", "default"). Resolve a chave automaticamente.',
-        },
-        client_api_key: {
-          type: 'string',
-          description:
-            'Chave de API do cliente no NexoPost (nex_live_...). Opcional se client_name for informado.',
+          description: 'Nome do cliente/perfil no NexoPost liberado para este WhatsApp.',
         },
       },
-      required: [],
+      required: ['sender_whatsapp'],
     },
   },
 ];
-
-function resolveApiKey(args) {
-  const rawKey = String(args?.client_api_key || '').trim();
-  if (rawKey.startsWith('nex_')) {
-    return rawKey;
-  }
-
-  const clientQuery = normalizeStr(args?.client_name || rawKey);
-  const keysMap = loadKeysMap();
-  const entries = Object.entries(keysMap);
-
-  if (clientQuery && entries.length > 0) {
-    // Match exato primeiro
-    for (const [profileName, key] of entries) {
-      if (normalizeStr(profileName) === clientQuery && String(key).startsWith('nex_')) {
-        return String(key);
-      }
-    }
-    // Match parcial
-    for (const [profileName, key] of entries) {
-      const normProfile = normalizeStr(profileName);
-      if ((normProfile.includes(clientQuery) || clientQuery.includes(normProfile)) && String(key).startsWith('nex_')) {
-        return String(key);
-      }
-    }
-  }
-
-  if (DEFAULT_API_KEY) {
-    return DEFAULT_API_KEY;
-  }
-
-  const availableClients = entries.map(([name]) => name).join(', ');
-  throw new Error(
-    `Chave de API do cliente não localizada para "${args?.client_name || rawKey || 'vazio'}". Clientes disponíveis no cofre NexoPost: ${
-      availableClients || 'nenhum'
-    }.`
-  );
-}
 
 function guessMimeType(filename) {
   const ext = path.extname(filename).toLowerCase();
@@ -225,6 +361,31 @@ function guessMimeType(filename) {
   if (ext === '.webp') return 'image/webp';
   if (ext === '.gif') return 'image/gif';
   return 'application/octet-stream';
+}
+
+async function callMyAccess(args) {
+  const senderWhatsapp = String(args?.sender_whatsapp || '').trim();
+  const link = findSenderLink(senderWhatsapp);
+  if (!link) {
+    return {
+      verified: false,
+      sender_whatsapp: senderWhatsapp,
+      message:
+        'Este número de WhatsApp não está verificado no NexoPost. Acesse https://nexopost.oriumdigital.tech/settings?tab=api, digite seu número de WhatsApp e confirme o código de 6 dígitos enviado pelo Hermes.',
+    };
+  }
+  return {
+    verified: true,
+    user_name: link.user_name,
+    user_email: link.user_email,
+    phone_normalized: link.phone_normalized,
+    scope: link.scope,
+    allowed_profiles: (link.profiles || []).map((p) => ({
+      profile_id: p.profile_id,
+      profile_name: p.profile_name,
+      connected_platforms: p.platforms,
+    })),
+  };
 }
 
 async function callSchedulePost(args) {
@@ -363,7 +524,6 @@ async function handleRequest(msg) {
   if (!msg || typeof msg !== 'object') return;
   const { id, method, params } = msg;
 
-  // Notifications (no id)
   if (id === undefined || id === null) {
     return;
   }
@@ -378,7 +538,7 @@ async function handleRequest(msg) {
         },
         serverInfo: {
           name: 'nexopost-mcp',
-          version: '1.0.0',
+          version: '1.1.0',
         },
       });
       return;
@@ -409,7 +569,9 @@ async function handleRequest(msg) {
       const args = params?.arguments || {};
 
       let output;
-      if (toolName === 'nexopost_schedule_post') {
+      if (toolName === 'nexopost_my_access') {
+        output = await callMyAccess(args);
+      } else if (toolName === 'nexopost_schedule_post') {
         output = await callSchedulePost(args);
       } else if (toolName === 'nexopost_list_schedule') {
         output = await callListSchedule(args);
