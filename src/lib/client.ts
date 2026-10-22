@@ -513,6 +513,20 @@ export const backend = {
         apiKeys: ApiKeyView[];
       }>
     ),
+
+  sendWhatsAppTest: (linkId: string) =>
+    fetch('/api/whatsapp-links', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send_test', link_id: linkId }),
+    }).then(json<{ success: boolean; message: string }>),
+
+  sendWhatsAppWeeklyReport: (linkId: string) =>
+    fetch('/api/whatsapp-links', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send_weekly_report', link_id: linkId }),
+    }).then(json<{ success: boolean; sent_reports: number; message: string }>),
 };
 
 export interface WhatsAppLinkView {

@@ -15,6 +15,7 @@ import {
   syncHermesWhatsAppPermissionsFile,
   verifyWhatsAppLinkCode,
 } from '@/lib/db';
+import { sendWeeklyReportForWhatsAppLink } from '@/lib/whatsappNotify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -227,6 +228,56 @@ export async function POST(request: NextRequest) {
         whatsappLinks: listWhatsAppLinks(user.id),
         apiKeys: listApiKeys(user.id),
         message: `WhatsApp +${verifiedLink.phone_normalized} verificado e liberado no Hermes!`,
+      });
+    }
+
+    if (action === 'send_weekly_report') {
+      const linkId = String(body.link_id || '').trim();
+      if (!linkId) {
+        return NextResponse.json({ error: 'Informe o ID do vínculo de WhatsApp.' }, { status: 400 });
+      }
+      const res = await sendWeeklyReportForWhatsAppLink(linkId, user.id);
+      if (!res.success) {
+        return NextResponse.json({ error: res.error || 'Falha ao enviar relatório semanal.' }, { status: 502 });
+      }
+      return NextResponse.json({
+        success: true,
+        sent_reports: res.sent_reports,
+        message: `Relatório semanal enviado no WhatsApp (${res.sent_reports} perfil(is))!`,
+      });
+    }
+
+    if (action === 'send_test') {
+      const linkId = String(body.link_id || '').trim();
+      const link = listWhatsAppLinks(user.id).find((l) => l.id === linkId);
+      if (!link || link.status !== 'verified') {
+        return NextResponse.json({ error: 'Vínculo verificado não encontrado.' }, { status: 404 });
+      }
+      const allowedNames = link.allowed_profiles.map((p) => p.username).join(', ');
+      const testMsg = [
+        `🔔 *Teste de Notificação Ativa — NexoPost × Hermes*`,
+        ``,
+        `Seu WhatsApp (+${link.phone_normalized}) está conectado e recebendo em tempo real:`,
+        `• ✅ Avisos de posts publicados com link direto`,
+        `• ⚠️ Alertas de falha ou token expirando`,
+        `• 📊 Relatórios semanais de performance e pautas`,
+        `• 📲 Envio direto de fotos/vídeos por aqui para publicar em: *${allowedNames}*`,
+      ].join('\n');
+
+      const relayRes = await sendViaHermesRelay({
+        phone_normalized: link.phone_normalized,
+        phone_alt: link.phone_alt,
+        message: testMsg,
+      });
+      if (!relayRes.success) {
+        return NextResponse.json(
+          { error: relayRes.error || 'Falha ao enviar mensagem de teste.' },
+          { status: 502 }
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        message: `Notificação de teste enviada para +${link.phone_normalized}!`,
       });
     }
 

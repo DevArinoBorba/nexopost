@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 /**
- * NexoPost <-> Hermes WhatsApp Bridge Relay
- * Escuta em um Unix Socket compartilhado (/data/nexopost/data/hermes-whatsapp.sock)
- * para permitir que o container nexopost-web envie códigos de verificação de 6 dígitos
- * pelo WhatsApp Bridge do Hermes (127.0.0.1:3000) sem abrir portas TCP externas.
+ * NexoPost <-> Hermes WhatsApp Bridge Relay & Scheduler Heartbeat
+ *  1) Escuta em um Unix Socket compartilhado (/data/nexopost/data/hermes-whatsapp.sock)
+ *     para que o container nexopost-web envie códigos de verificação, notificações pós-post,
+ *     alertas de falha/token e relatórios semanais pelo WhatsApp Bridge do Hermes (127.0.0.1:3000)
+ *     sem abrir portas TCP externas.
+ *  2) Dispara a cada 60s um tick em https://nexopost.oriumdigital.tech/api/scheduler/run
+ *     para publicar posts agendados no horário exato, verificar tokens prestes a expirar
+ *     e enviar o Relatório Semanal Executivo toda segunda-feira de manhã.
  */
 
 import http from 'http';
@@ -12,6 +16,7 @@ import path from 'path';
 
 const SOCKET_PATH = process.env.HERMES_WHATSAPP_SOCKET || '/data/nexopost/data/hermes-whatsapp.sock';
 const BRIDGE_URL = (process.env.HERMES_BRIDGE_URL || 'http://127.0.0.1:3000').replace(/\/+$/, '');
+const NEXOPOST_URL = (process.env.NEXOPOST_API_URL || 'https://nexopost.oriumdigital.tech').replace(/\/+$/, '');
 const SESSION_DIR = process.env.HERMES_WHATSAPP_SESSION_DIR || '/root/.hermes/whatsapp/session';
 
 function resolveWhatsAppTargets(phoneNormalized, phoneAlt) {
@@ -137,3 +142,20 @@ server.listen(SOCKET_PATH, () => {
   }
   console.log(`[nexopost-whatsapp-relay] Listening on ${SOCKET_PATH} -> ${BRIDGE_URL}`);
 });
+
+// Heartbeat a cada 60 segundos para processar fila agendada, alertas de token e relatório semanal de segunda-feira
+let tickRunning = false;
+setInterval(async () => {
+  if (tickRunning) return;
+  tickRunning = true;
+  try {
+    await fetch(`${NEXOPOST_URL}/api/scheduler/run`, {
+      method: 'POST',
+      headers: { 'User-Agent': 'nexopost-whatsapp-relay/1.2' },
+    });
+  } catch {
+    // ignore transient container restart
+  } finally {
+    tickRunning = false;
+  }
+}, 60_000);

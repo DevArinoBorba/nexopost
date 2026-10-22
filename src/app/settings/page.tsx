@@ -278,6 +278,34 @@ export default function SettingsPage() {
     }
   };
 
+  const [busyWaActionId, setBusyWaActionId] = useState<string | null>(null);
+
+  const handleSendWaTest = async (l: WhatsAppLinkView) => {
+    setBusyWaActionId(`test_${l.id}`);
+    setError('');
+    try {
+      const res = await backend.sendWhatsAppTest(l.id);
+      showSuccess(res.message);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyWaActionId(null);
+    }
+  };
+
+  const handleSendWaWeeklyReport = async (l: WhatsAppLinkView) => {
+    setBusyWaActionId(`report_${l.id}`);
+    setError('');
+    try {
+      const res = await backend.sendWhatsAppWeeklyReport(l.id);
+      showSuccess(res.message);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyWaActionId(null);
+    }
+  };
+
   useEffect(() => {
 
     if (typeof window !== 'undefined') {
@@ -1633,7 +1661,37 @@ export default function SettingsPage() {
                               </p>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {l.status === 'verified' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled={busyWaActionId !== null}
+                                    onClick={() => handleSendWaTest(l)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-white dark:bg-slate-900 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg transition-colors"
+                                  >
+                                    {busyWaActionId === `test_${l.id}` ? (
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                      <Phone className="w-3.5 h-3.5" />
+                                    )}
+                                    Testar Aviso
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={busyWaActionId !== null}
+                                    onClick={() => handleSendWaWeeklyReport(l)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-700 dark:text-brand-300 bg-white dark:bg-slate-900 hover:bg-brand-50 dark:hover:bg-brand-900/30 border border-brand-200 dark:border-brand-800 rounded-lg transition-colors"
+                                  >
+                                    {busyWaActionId === `report_${l.id}` ? (
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                      <Sparkles className="w-3.5 h-3.5" />
+                                    )}
+                                    Enviar Relatório Semanal
+                                  </button>
+                                </>
+                              )}
                               {isPending && (
                                 <button
                                   type="button"

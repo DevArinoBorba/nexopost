@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getActiveProfile } from '@/lib/activeProfile';
-import { createPost, createTarget, getAccounts, getTargets, updatePost } from '@/lib/db';
-import { publishPost, saveMedia, guessMime } from '@/lib/publish';
+import { createPost, createTarget, getAccounts, getTargets } from '@/lib/db';
+import { publishPost, saveMedia } from '@/lib/publish';
+import { notifyPostScheduled } from '@/lib/whatsappNotify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,9 +41,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Escreva o texto do post.' }, { status: 400 });
     }
 
-    // 1) Salvar mÃ­dia (uma ou vÃ¡rias)
+    // 1) Salvar mídia (uma ou várias)
     let mediaPath: string | null = null;
-    let mediaPaths: string[] = [];
+    const mediaPaths: string[] = [];
     let mediaSize: number | null = null;
     let sourceFilename: string | null = null;
     const files = (form.getAll('media') as File[]).filter((f) => f && f.size > 0);
@@ -58,10 +59,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (mediaType !== 'text' && mediaPaths.length === 0) {
-      return NextResponse.json({ error: 'Nenhum arquivo vÃ¡lido foi enviado.' }, { status: 400 });
+      return NextResponse.json({ error: 'Nenhum arquivo válido foi enviado.' }, { status: 400 });
     }
     if (mediaType === 'photo' && format === 'story' && mediaPaths.length > 1) {
-      return NextResponse.json({ error: 'Story aceita apenas uma mÃ­dia.' }, { status: 400 });
+      return NextResponse.json({ error: 'Story aceita apenas uma mídia.' }, { status: 400 });
     }
 
     // 2) Criar o post
@@ -82,18 +83,23 @@ export async function POST(request: NextRequest) {
     });
 
     // 3) Criar um destino por plataforma
+    const targetPlatforms: string[] = [];
     for (const account of destinations) {
-      if (account) createTarget({ post_id: post.id, platform: account.platform, account_id: account.id });
+      if (account) {
+        createTarget({ post_id: post.id, platform: account.platform, account_id: account.id });
+        targetPlatforms.push(account.platform);
+      }
     }
 
-    // 4) Agendado â†’ nÃ£o publica agora
+    // 4) Agendado → não publica agora e avisa no WhatsApp
     if (scheduledAt) {
+      await notifyPostScheduled(post.id, targetPlatforms).catch(() => {});
       return NextResponse.json({
         success: true,
         post_id: post.id,
         status: 'scheduled',
         scheduled_at: scheduledAt,
-        platforms,
+        platforms: targetPlatforms,
       });
     }
 

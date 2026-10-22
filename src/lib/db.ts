@@ -1267,6 +1267,7 @@ export function upsertBrandProfile(data: {
   `
   ).run(updated);
 
+  syncHermesWhatsAppPermissionsFile();
   return updated;
 }
 
@@ -1719,6 +1720,7 @@ export function syncHermesWhatsAppPermissionsFile(): void {
           profile_name: p.username,
           platforms: p.platforms,
           api_key: tokensMap[p.id]?.api_key || '',
+          brand_profile: getBrandProfile(p.id),
         })),
       };
     });

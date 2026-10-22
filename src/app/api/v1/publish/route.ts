@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireApiKey } from '@/lib/apiKeyAuth';
 import { createPost, createTarget, getAccounts, getTargets } from '@/lib/db';
 import { publishPost, saveMedia } from '@/lib/publish';
+import { notifyPostScheduled } from '@/lib/whatsappNotify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -266,6 +267,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (scheduledAt) {
+      await notifyPostScheduled(post.id, targetPlatforms).catch(() => {});
       return NextResponse.json(
         {
           success: true,

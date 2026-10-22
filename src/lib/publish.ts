@@ -15,6 +15,7 @@ import {
   type Post,
   type PostTarget,
 } from './db';
+import { checkAndNotifyExpiringTokens, notifyPostPublishedOrFailed } from './whatsappNotify';
 
 const MIME: Record<string, string> = {
   '.mp4': 'video/mp4',
@@ -146,11 +147,18 @@ export async function publishPost(postId: string): Promise<PostTarget[]> {
     status: anyPublished && !anyFailed ? 'published' : anyFailed ? 'failed' : 'published',
   });
 
+  // Dispara notificação ativa no WhatsApp vinculado ao perfil (pós-publicação ou alerta de falha)
+  await notifyPostPublishedOrFailed(postId, results).catch(() => {});
+
   return results;
 }
 
-/** Executa posts agendados que já venceram. */
-export async function runDuePosts(): Promise<{ processed: number; results: { post: string; targets: PostTarget[] }[] }> {
+/** Executa posts agendados que já venceram e verifica tokens prestes a expirar. */
+export async function runDuePosts(): Promise<{
+  processed: number;
+  results: { post: string; targets: PostTarget[] }[];
+  tokenAlertsSent?: number;
+}> {
   const due = db
     .prepare("SELECT * FROM posts WHERE status = 'scheduled' AND scheduled_at IS NOT NULL AND scheduled_at <= ?")
     .all(new Date().toISOString()) as Post[];
@@ -164,7 +172,10 @@ export async function runDuePosts(): Promise<{ processed: number; results: { pos
       updatePost(p.id, { status: 'failed' });
     }
   }
-  return { processed: due.length, results: out };
+
+  const tokenCheck = await checkAndNotifyExpiringTokens().catch(() => ({ alertsSent: 0 }));
+
+  return { processed: due.length, results: out, tokenAlertsSent: tokenCheck.alertsSent };
 }
 
 /** Os arquivos enviados são salvos por saveMedia (em @/lib/paths). */

@@ -2,19 +2,41 @@
 /**
  * NexoPost MCP Server (Model Context Protocol over stdio)
  * Conecta o Agente Hermes ao NexoPost REST API v1 (/api/v1/*)
- * com controle de acesso estrito por número de WhatsApp verificado.
+ * com:
+ *  - Controle de acesso estrito por número de WhatsApp verificado (sender_whatsapp)
+ *  - Detecção automática de vídeos e fotos enviados diretamente no WhatsApp (Item 3)
+ *  - Leitura automática do Cérebro da Marca (Brand Context) para legendas no tom da marca
+ *  - Relatório Semanal Executivo sob demanda e agendado (Item 4)
  */
 
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
 
-const BASE_URL = (process.env.NEXOPOST_BASE_URL || 'https://nexopost.oriumdigital.tech').replace(/\/+$/, '');
+const BASE_URL = (
+  process.env.NEXOPOST_API_URL ||
+  process.env.NEXOPOST_BASE_URL ||
+  'https://nexopost.oriumdigital.tech'
+).replace(/\/+$/, '');
 const DEFAULT_API_KEY = (process.env.NEXOPOST_DEFAULT_API_KEY || '').trim();
 const KEYS_FILE = process.env.NEXOPOST_KEYS_FILE || '/root/.hermes/nexopost_keys.json';
 const PERMISSIONS_FILE =
-  process.env.NEXOPOST_WHATSAPP_PERMISSIONS_FILE || '/data/nexopost/data/hermes_whatsapp_permissions.json';
+  process.env.NEXOPOST_PERMISSIONS_FILE ||
+  process.env.NEXOPOST_WHATSAPP_PERMISSIONS_FILE ||
+  '/data/nexopost/data/hermes_whatsapp_permissions.json';
 const SESSION_DIR = process.env.HERMES_WHATSAPP_SESSION_DIR || '/root/.hermes/whatsapp/session';
+
+const WHATSAPP_MEDIA_DIRS = [
+  '/root/.hermes/cache/images',
+  '/root/.hermes/cache/documents',
+  '/root/.hermes/cache/videos',
+  '/root/.hermes/image_cache',
+  '/root/.hermes/document_cache',
+  '/data/nexopost/data/media',
+];
+
+const PHOTO_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const VIDEO_EXTS = new Set(['.mp4', '.mov', '.webm', '.mkv', '.m4v', '.avi', '.3gp']);
 
 function normalizeStr(s) {
   return String(s || '')
@@ -112,7 +134,6 @@ function resolveApiKey(args) {
   const senderWhatsapp = String(args?.sender_whatsapp || '').trim();
   const verifiedLinks = loadPermissionsData();
 
-  // Se já existem vínculos verificados ou se sender_whatsapp foi informado, aplica o controle por WhatsApp
   if (senderWhatsapp || verifiedLinks.length > 0) {
     if (!senderWhatsapp) {
       throw new Error(
@@ -143,13 +164,11 @@ function resolveApiKey(args) {
       return def.api_key;
     }
 
-    // Match exato dentro dos perfis permitidos para este WhatsApp
     for (const p of allowedProfiles) {
       if (normalizeStr(p.profile_name) === clientQuery && p.api_key) {
         return p.api_key;
       }
     }
-    // Match parcial dentro dos perfis permitidos para este WhatsApp
     for (const p of allowedProfiles) {
       const normName = normalizeStr(p.profile_name);
       if ((normName.includes(clientQuery) || clientQuery.includes(normName)) && p.api_key) {
@@ -163,7 +182,6 @@ function resolveApiKey(args) {
     );
   }
 
-  // Fallback legado caso ainda não haja vínculos na tabela whatsapp_links
   const rawKey = String(args?.client_api_key || '').trim();
   if (rawKey.startsWith('nex_')) {
     return rawKey;
@@ -192,11 +210,108 @@ function resolveApiKey(args) {
   throw new Error('Chave de API ou vínculo de WhatsApp não encontrado.');
 }
 
+/**
+ * Busca os arquivos de vídeo/foto mais recentes recebidos pelo WhatsApp Bridge do Hermes.
+ */
+function scanLatestWhatsAppMedia({ mediaTypeFilter = 'any', maxAgeMinutes = 240, limit = 5 } = {}) {
+  const nowMs = Date.now();
+  const maxAgeMs = maxAgeMinutes * 60 * 1000;
+  const items = [];
+
+  for (const dir of WHATSAPP_MEDIA_DIRS) {
+    if (!fs.existsSync(dir)) continue;
+    let files = [];
+    try {
+      files = fs.readdirSync(dir);
+    } catch {
+      continue;
+    }
+
+    for (const f of files) {
+      if (f.startsWith('sticker_')) continue;
+      const ext = path.extname(f).toLowerCase();
+      const isPhoto = PHOTO_EXTS.has(ext);
+      const isVideo = VIDEO_EXTS.has(ext);
+      if (!isPhoto && !isVideo) continue;
+
+      const detectedType = isVideo ? 'video' : 'photo';
+      if (mediaTypeFilter === 'video' && detectedType !== 'video') continue;
+      if (mediaTypeFilter === 'photo' && detectedType !== 'photo') continue;
+
+      const fullPath = path.join(dir, f);
+      try {
+        const stat = fs.statSync(fullPath);
+        if (!stat.isFile() || stat.size === 0) continue;
+        const ageMs = nowMs - stat.mtimeMs;
+        if (maxAgeMinutes > 0 && ageMs > maxAgeMs) continue;
+
+        items.push({
+          file_path: fullPath,
+          filename: f,
+          media_type: detectedType,
+          recommended_format: detectedType === 'video' ? 'reel' : 'feed',
+          size_bytes: stat.size,
+          received_at: new Date(stat.mtimeMs).toISOString(),
+          minutes_ago: Math.max(0, Math.round(ageMs / 60000)),
+        });
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  items.sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
+  return items.slice(0, limit);
+}
+
+/**
+ * Resolve o caminho de mídia local (aceita caminho completo, nome do arquivo no cache ou "latest"/"auto").
+ */
+function resolveWhatsAppMediaFilePath(rawMediaPath, useLatest, mediaTypeFilter) {
+  const trimmed = String(rawMediaPath || '').trim();
+  const wantsAuto =
+    useLatest === true ||
+    trimmed.toLowerCase() === 'latest' ||
+    trimmed.toLowerCase() === 'auto' ||
+    trimmed.toLowerCase() === 'whatsapp';
+
+  if (trimmed && !wantsAuto) {
+    if (fs.existsSync(trimmed)) {
+      return trimmed;
+    }
+    // Se passou apenas o nome do arquivo (ex: vid_123456.mp4 ou img_1f7b1c81f4fb.jpg), procura nos diretórios de cache
+    const base = path.basename(trimmed);
+    for (const dir of WHATSAPP_MEDIA_DIRS) {
+      const candidate = path.join(dir, base);
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+    throw new Error(`Arquivo local não encontrado em: ${trimmed}`);
+  }
+
+  if (wantsAuto) {
+    const recent = scanLatestWhatsAppMedia({
+      mediaTypeFilter: mediaTypeFilter === 'video' || mediaTypeFilter === 'photo' ? mediaTypeFilter : 'any',
+      maxAgeMinutes: 360,
+      limit: 1,
+    });
+    if (recent.length === 0) {
+      throw new Error(
+        'Nenhuma foto ou vídeo recente foi encontrado no cache do WhatsApp. Envie a foto ou vídeo novamente aqui no WhatsApp.'
+      );
+    }
+    return recent[0].file_path;
+  }
+
+  return '';
+}
+
 const TOOLS = [
   {
     name: 'nexopost_my_access',
     description:
-      'Verifica se o número de WhatsApp do remetente está vinculado e verificado no NexoPost e retorna exatamente quais perfis (clientes) e redes sociais ele tem permissão para publicar.',
+      'Verifica se o número de WhatsApp do remetente está vinculado e verificado no NexoPost e retorna quais perfis (clientes), redes sociais conectadas e diretrizes do Cérebro da Marca ele tem permissão para publicar.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -210,16 +325,40 @@ const TOOLS = [
     },
   },
   {
+    name: 'nexopost_latest_whatsapp_media',
+    description:
+      'Localiza automaticamente a última foto ou vídeo enviado pelo usuário na conversa do WhatsApp (em /root/.hermes/cache/images ou /root/.hermes/cache/documents) e retorna o caminho exato do arquivo junto com o Cérebro da Marca (Brand Context) do cliente para você criar o título e legenda perfeitos antes de publicar.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sender_whatsapp: {
+          type: 'string',
+          description: 'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp.',
+        },
+        client_name: {
+          type: 'string',
+          description: 'Nome do cliente/perfil no NexoPost (opcional).',
+        },
+        media_type_filter: {
+          type: 'string',
+          enum: ['any', 'video', 'photo'],
+          description: 'Filtrar por vídeo ("video"), foto ("photo") ou qualquer um ("any", padrão).',
+        },
+      },
+      required: ['sender_whatsapp'],
+    },
+  },
+  {
     name: 'nexopost_schedule_post',
     description:
-      'Agenda ou publica imediatamente uma publicação (vídeo, foto ou texto) no NexoPost apenas nas contas sociais vinculadas ao WhatsApp do remetente. Se media_path apontar para um arquivo local na VPS, o MCP faz o upload binário automaticamente.',
+      'Agenda ou publica imediatamente uma publicação (vídeo, foto ou texto) no NexoPost apenas nas contas sociais vinculadas ao WhatsApp do remetente. Aceita media_path explícito OU use_latest_whatsapp_media=true (ou media_path="latest") para usar automaticamente a última foto/vídeo enviada pelo usuário no WhatsApp!',
     inputSchema: {
       type: 'object',
       properties: {
         sender_whatsapp: {
           type: 'string',
           description:
-            'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp (ex: "5567981108176" ou "72736059699239@lid"). O sistema valida se esse número tem permissão para publicar no perfil solicitado.',
+            'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp (ex: "5567981108176" ou "72736059699239@lid").',
         },
         client_name: {
           type: 'string',
@@ -229,7 +368,12 @@ const TOOLS = [
         media_path: {
           type: 'string',
           description:
-            'Caminho absoluto do arquivo de vídeo ou foto no disco da VPS (ex: /root/.hermes/cache/images/foto.jpg).',
+            'Caminho absoluto do arquivo de vídeo ou foto na VPS (ex: /root/.hermes/cache/images/img_xxx.jpg) OU "latest" para pegar automaticamente a última mídia recebida no WhatsApp.',
+        },
+        use_latest_whatsapp_media: {
+          type: 'boolean',
+          description:
+            'Se true, anexa automaticamente o vídeo ou foto mais recente enviado pelo usuário no WhatsApp.',
         },
         media_url: {
           type: 'string',
@@ -241,7 +385,7 @@ const TOOLS = [
         },
         description: {
           type: 'string',
-          description: 'Legenda completa com texto, CTA e hashtags.',
+          description: 'Legenda completa com texto, CTA da marca e hashtags.',
         },
         platforms: {
           type: 'array',
@@ -259,7 +403,7 @@ const TOOLS = [
         format: {
           type: 'string',
           enum: ['feed', 'reel', 'story'],
-          description: 'Formato da publicação (padrão: feed ou reel para vídeo vertical).',
+          description: 'Formato da publicação (padrão: reel para vídeo vertical ou feed para foto).',
         },
         media_type: {
           type: 'string',
@@ -279,8 +423,7 @@ const TOOLS = [
       properties: {
         sender_whatsapp: {
           type: 'string',
-          description:
-            'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp.',
+          description: 'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp.',
         },
         client_name: {
           type: 'string',
@@ -308,8 +451,7 @@ const TOOLS = [
       properties: {
         sender_whatsapp: {
           type: 'string',
-          description:
-            'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp.',
+          description: 'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp.',
         },
         client_name: {
           type: 'string',
@@ -330,6 +472,30 @@ const TOOLS = [
     },
   },
   {
+    name: 'nexopost_weekly_report',
+    description:
+      'Gera (e opcionalmente envia formatado no WhatsApp) o Relatório Semanal Executivo de performance do cliente, com crescimento de seguidores, alcance 7d, posts publicados na semana, fila agendada e 3 sugestões de pauta baseadas no Cérebro da Marca.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sender_whatsapp: {
+          type: 'string',
+          description: 'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp.',
+        },
+        client_name: {
+          type: 'string',
+          description: 'Nome do cliente/perfil no NexoPost liberado para este WhatsApp.',
+        },
+        send_whatsapp: {
+          type: 'boolean',
+          description:
+            'Se true, o próprio NexoPost também dispara o relatório formatado no WhatsApp vinculado.',
+        },
+      },
+      required: ['sender_whatsapp'],
+    },
+  },
+  {
     name: 'nexopost_list_accounts',
     description:
       'Lista as redes sociais conectadas no perfil do cliente no NexoPost, status do token OAuth, contagem de seguidores e diretrizes do Cérebro da Marca liberados para o WhatsApp do remetente.',
@@ -338,8 +504,7 @@ const TOOLS = [
       properties: {
         sender_whatsapp: {
           type: 'string',
-          description:
-            'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp.',
+          description: 'OBRIGATÓRIO: Número de WhatsApp ou @lid de quem enviou a mensagem no WhatsApp.',
         },
         client_name: {
           type: 'string',
@@ -356,11 +521,19 @@ function guessMimeType(filename) {
   if (ext === '.mp4' || ext === '.m4v') return 'video/mp4';
   if (ext === '.mov') return 'video/quicktime';
   if (ext === '.webm') return 'video/webm';
+  if (ext === '.mkv') return 'video/x-matroska';
   if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
   if (ext === '.png') return 'image/png';
   if (ext === '.webp') return 'image/webp';
   if (ext === '.gif') return 'image/gif';
   return 'application/octet-stream';
+}
+
+function detectMediaTypeByExt(filename) {
+  const ext = path.extname(filename).toLowerCase();
+  if (VIDEO_EXTS.has(ext)) return 'video';
+  if (PHOTO_EXTS.has(ext)) return 'photo';
+  return 'video';
 }
 
 async function callMyAccess(args) {
@@ -384,21 +557,50 @@ async function callMyAccess(args) {
       profile_id: p.profile_id,
       profile_name: p.profile_name,
       connected_platforms: p.platforms,
+      brand_profile: p.brand_profile || null,
     })),
+  };
+}
+
+async function callLatestWhatsAppMedia(args) {
+  const access = await callMyAccess(args);
+  if (!access.verified) {
+    return access;
+  }
+
+  const filter = args?.media_type_filter || 'any';
+  const files = scanLatestWhatsAppMedia({
+    mediaTypeFilter: filter,
+    maxAgeMinutes: 360,
+    limit: 5,
+  });
+
+  return {
+    success: true,
+    latest_media: files[0] || null,
+    recent_media_files: files,
+    allowed_profiles: access.allowed_profiles,
+    instructions:
+      files.length > 0
+        ? `Arquivo pronto para publicação: "${files[0].file_path}" (${files[0].media_type}). Use o Cérebro da Marca (brand_profile) do perfil escolhido para criar title e description e chame nexopost_schedule_post com media_path="${files[0].file_path}".`
+        : 'Nenhuma foto ou vídeo recente encontrado nos últimos 360 minutos.',
   };
 }
 
 async function callSchedulePost(args) {
   const apiKey = resolveApiKey(args);
-  const mediaPath = args.media_path ? String(args.media_path).trim() : '';
+  const resolvedMediaPath = resolveWhatsAppMediaFilePath(
+    args.media_path,
+    args.use_latest_whatsapp_media,
+    args.media_type
+  );
 
-  if (mediaPath) {
-    if (!fs.existsSync(mediaPath)) {
-      throw new Error(`Arquivo local não encontrado no caminho: ${mediaPath}`);
-    }
-    const fileBuffer = fs.readFileSync(mediaPath);
-    const filename = path.basename(mediaPath);
+  if (resolvedMediaPath) {
+    const fileBuffer = fs.readFileSync(resolvedMediaPath);
+    const filename = path.basename(resolvedMediaPath);
     const mimeType = guessMimeType(filename);
+    const detectedType = args.media_type || detectMediaTypeByExt(filename);
+    const defaultFormat = detectedType === 'video' ? 'reel' : 'feed';
 
     const form = new FormData();
     form.set('title', String(args.title || ''));
@@ -407,8 +609,8 @@ async function callSchedulePost(args) {
       form.append('platforms', String(p));
     }
     if (args.scheduled_at) form.set('scheduled_at', String(args.scheduled_at));
-    if (args.format) form.set('format', String(args.format));
-    if (args.media_type) form.set('media_type', String(args.media_type));
+    form.set('format', String(args.format || defaultFormat));
+    form.set('media_type', String(detectedType));
 
     const blob = new Blob([fileBuffer], { type: mimeType });
     form.append('media', blob, filename);
@@ -425,7 +627,10 @@ async function callSchedulePost(args) {
     if (!res.ok) {
       throw new Error(data.error || `Erro HTTP ${res.status} ao publicar no NexoPost.`);
     }
-    return data;
+    return {
+      ...data,
+      used_media_file: resolvedMediaPath,
+    };
   }
 
   const res = await fetch(`${BASE_URL}/api/v1/publish`, {
@@ -494,6 +699,25 @@ async function callGetMetrics(args) {
   return data;
 }
 
+async function callWeeklyReport(args) {
+  const apiKey = resolveApiKey(args);
+  const sendWhatsapp = Boolean(args.send_whatsapp);
+
+  const res = await fetch(`${BASE_URL}/api/v1/weekly-report`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ send_whatsapp: sendWhatsapp }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `Erro HTTP ${res.status} ao gerar relatório semanal.`);
+  }
+  return data;
+}
+
 async function callListAccounts(args) {
   const apiKey = resolveApiKey(args);
   const res = await fetch(`${BASE_URL}/api/v1/accounts`, {
@@ -538,7 +762,7 @@ async function handleRequest(msg) {
         },
         serverInfo: {
           name: 'nexopost-mcp',
-          version: '1.1.0',
+          version: '1.2.0',
         },
       });
       return;
@@ -571,12 +795,16 @@ async function handleRequest(msg) {
       let output;
       if (toolName === 'nexopost_my_access') {
         output = await callMyAccess(args);
+      } else if (toolName === 'nexopost_latest_whatsapp_media') {
+        output = await callLatestWhatsAppMedia(args);
       } else if (toolName === 'nexopost_schedule_post') {
         output = await callSchedulePost(args);
       } else if (toolName === 'nexopost_list_schedule') {
         output = await callListSchedule(args);
       } else if (toolName === 'nexopost_get_metrics') {
         output = await callGetMetrics(args);
+      } else if (toolName === 'nexopost_weekly_report') {
+        output = await callWeeklyReport(args);
       } else if (toolName === 'nexopost_list_accounts') {
         output = await callListAccounts(args);
       } else {
