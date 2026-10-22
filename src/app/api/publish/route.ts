@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
           return matches.length === 1 ? matches[0] : undefined;
         });
     if (!destinations.length || destinations.some((a) => !a)) {
-      return NextResponse.json({ error: 'Selecione contas v�lidas e espec�ficas deste cliente.' }, { status: 400 });
+      return NextResponse.json({ error: 'Selecione contas válidas e específicas deste cliente.' }, { status: 400 });
     }
     const scheduledAt = (form.get('scheduled_at') as string) || null;
     const timezone = (form.get('timezone') as string) || null;
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Escreva o texto do post.' }, { status: 400 });
     }
 
-    // 1) Salvar mídia (uma ou várias)
+    // 1) Salvar mÃ­dia (uma ou vÃ¡rias)
     let mediaPath: string | null = null;
     let mediaPaths: string[] = [];
     let mediaSize: number | null = null;
@@ -58,10 +58,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (mediaType !== 'text' && mediaPaths.length === 0) {
-      return NextResponse.json({ error: 'Nenhum arquivo válido foi enviado.' }, { status: 400 });
+      return NextResponse.json({ error: 'Nenhum arquivo vÃ¡lido foi enviado.' }, { status: 400 });
     }
     if (mediaType === 'photo' && format === 'story' && mediaPaths.length > 1) {
-      return NextResponse.json({ error: 'Story aceita apenas uma mídia.' }, { status: 400 });
+      return NextResponse.json({ error: 'Story aceita apenas uma mÃ­dia.' }, { status: 400 });
     }
 
     // 2) Criar o post
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       if (account) createTarget({ post_id: post.id, platform: account.platform, account_id: account.id });
     }
 
-    // 4) Agendado → não publica agora
+    // 4) Agendado â†’ nÃ£o publica agora
     if (scheduledAt) {
       return NextResponse.json({
         success: true,
