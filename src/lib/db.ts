@@ -52,6 +52,19 @@ function runMigrations(db: Database.Database) {
       rules_to_avoid        TEXT NOT NULL DEFAULT '',
       updated_at            TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id           TEXT PRIMARY KEY,
+      user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      profile_id   TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      name         TEXT NOT NULL,
+      key_prefix   TEXT NOT NULL,
+      token_hash   TEXT UNIQUE NOT NULL,
+      last_used_at TEXT,
+      created_at   TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_api_keys_token ON api_keys(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_api_keys_profile ON api_keys(profile_id);
   `);
 }
 
@@ -1234,5 +1247,129 @@ export function upsertBrandProfile(data: {
 
   return updated;
 }
+
+// ============================================================
+// Chaves de API (API Keys — Integração Hermes & SaaS v1)
+// ============================================================
+
+export interface ApiKeyRecord {
+  id: string;
+  user_id: string;
+  profile_id: string;
+  profile_name?: string;
+  name: string;
+  key_prefix: string;
+  token_hash: string;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+export type PublicApiKey = Omit<ApiKeyRecord, 'token_hash'>;
+
+export function hashApiKey(rawToken: string): string {
+  return crypto.createHash('sha256').update(rawToken.trim()).digest('hex');
+}
+
+export function createApiKey(data: {
+  user_id: string;
+  profile_id: string;
+  name: string;
+}): { apiKey: PublicApiKey; rawToken: string } {
+  const rawToken = `nex_live_${crypto.randomBytes(24).toString('base64url')}`;
+  const tokenHash = hashApiKey(rawToken);
+  const keyPrefix = `${rawToken.slice(0, 15)}...${rawToken.slice(-4)}`;
+  const ts = now();
+  const id = randomId();
+
+  db.prepare(
+    `INSERT INTO api_keys (id, user_id, profile_id, name, key_prefix, token_hash, last_used_at, created_at)
+     VALUES (@id, @user_id, @profile_id, @name, @key_prefix, @token_hash, NULL, @created_at)`
+  ).run({
+    id,
+    user_id: data.user_id,
+    profile_id: data.profile_id,
+    name: data.name.trim() || 'Chave de API',
+    key_prefix: keyPrefix,
+    token_hash: tokenHash,
+    created_at: ts,
+  });
+
+  const profile = getProfileById(data.profile_id);
+  return {
+    apiKey: {
+      id,
+      user_id: data.user_id,
+      profile_id: data.profile_id,
+      profile_name: profile?.username || 'default',
+      name: data.name.trim() || 'Chave de API',
+      key_prefix: keyPrefix,
+      last_used_at: null,
+      created_at: ts,
+    },
+    rawToken,
+  };
+}
+
+export function listApiKeys(userId: string, profileId?: string): PublicApiKey[] {
+  const rows = profileId
+    ? (db
+        .prepare(
+          `SELECT k.id, k.user_id, k.profile_id, p.username as profile_name, k.name, k.key_prefix, k.last_used_at, k.created_at
+           FROM api_keys k
+           LEFT JOIN profiles p ON p.id = k.profile_id
+           WHERE k.user_id = ? AND k.profile_id = ?
+           ORDER BY k.created_at DESC`
+        )
+        .all(userId, profileId) as PublicApiKey[])
+    : (db
+        .prepare(
+          `SELECT k.id, k.user_id, k.profile_id, p.username as profile_name, k.name, k.key_prefix, k.last_used_at, k.created_at
+           FROM api_keys k
+           LEFT JOIN profiles p ON p.id = k.profile_id
+           WHERE k.user_id = ?
+           ORDER BY k.created_at DESC`
+        )
+        .all(userId) as PublicApiKey[]);
+
+  return rows;
+}
+
+export function revokeApiKey(id: string, userId: string): boolean {
+  const res = db.prepare('DELETE FROM api_keys WHERE id = ? AND user_id = ?').run(id, userId);
+  return res.changes > 0;
+}
+
+export function authenticateApiKey(rawToken: string): {
+  apiKey: PublicApiKey;
+  profile: Profile;
+  user: User;
+} | null {
+  const trimmed = rawToken.trim();
+  if (!trimmed.startsWith('nex_')) return null;
+
+  const tokenHash = hashApiKey(trimmed);
+  const record = db
+    .prepare('SELECT * FROM api_keys WHERE token_hash = ?')
+    .get(tokenHash) as ApiKeyRecord | undefined;
+
+  if (!record) return null;
+
+  const user = getUserById(record.user_id);
+  if (!user || user.status === 'suspended') return null;
+
+  const profile = getProfileById(record.profile_id);
+  if (!profile) return null;
+
+  const usedAt = now();
+  db.prepare('UPDATE api_keys SET last_used_at = ? WHERE id = ?').run(usedAt, record.id);
+
+  const { token_hash: _hash, ...publicKey } = record;
+  return {
+    apiKey: { ...publicKey, profile_name: profile.username, last_used_at: usedAt },
+    profile,
+    user,
+  };
+}
+
 
 

@@ -1,0 +1,13 @@
+{
+  "name": "nexopost-mcp",
+  "version": "1.0.0",
+  "description": "Servidor MCP oficial do NexoPost para integração com o Agente Hermes via stdio",
+  "type": "module",
+  "main": "index.mjs",
+  "bin": {
+    "nexopost-mcp": "./index.mjs"
+  },
+  "scripts": {
+    "start": "node index.mjs"
+  }
+}

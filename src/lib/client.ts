@@ -424,7 +424,53 @@ export const backend = {
         brandProfile: BrandProfileView;
       }>
     ),
+
+  // ----- Chaves de API (Hermes & REST v1) -----
+  getApiKeys: (profileId?: string) =>
+    fetch(`/api/api-keys${profileId ? `?profile_id=${encodeURIComponent(profileId)}` : ''}`, {
+      cache: 'no-store',
+    }).then(
+      json<{
+        success: boolean;
+        activeProfile: { id: string; username: string };
+        profiles: { id: string; username: string }[];
+        apiKeys: ApiKeyView[];
+      }>
+    ),
+
+  createApiKey: (data: { profile_id?: string; name?: string }) =>
+    fetch('/api/api-keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(
+      json<{
+        success: boolean;
+        apiKey: ApiKeyView;
+        rawToken: string;
+        apiKeys: ApiKeyView[];
+      }>
+    ),
+
+  revokeApiKey: (id: string) =>
+    fetch(`/api/api-keys?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).then(
+      json<{
+        success: boolean;
+        apiKeys: ApiKeyView[];
+      }>
+    ),
 };
+
+export interface ApiKeyView {
+  id: string;
+  user_id: string;
+  profile_id: string;
+  profile_name?: string;
+  name: string;
+  key_prefix: string;
+  last_used_at: string | null;
+  created_at: string;
+}
 
 export interface BrandProfileView {
   profile_id: string;

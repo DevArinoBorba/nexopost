@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import AppShell from '@/components/AppShell';
 import { useTheme } from '@/components/ThemeProvider';
 import { useAuth } from '@/components/AuthProvider';
-import { backend, type UserAccountView, type SessionView, type BrandProfileView } from '@/lib/client';
+import { backend, type UserAccountView, type SessionView, type BrandProfileView, type ApiKeyView } from '@/lib/client';
 import {
   User,
   Users,
@@ -33,6 +33,8 @@ import {
   Megaphone,
   Ban,
   Wand2,
+  Copy,
+  Terminal,
 } from 'lucide-react';
 
 type Tab = 'profile' | 'brand' | 'users' | 'api' | 'appearance' | 'server';
@@ -103,6 +105,16 @@ export default function SettingsPage() {
   const [resetPasswordValue, setResetPasswordValue] = useState('');
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
 
+  // Chaves de API (Hermes & REST v1)
+  const [apiKeys, setApiKeys] = useState<ApiKeyView[]>([]);
+  const [apiProfiles, setApiProfiles] = useState<{ id: string; username: string }[]>([]);
+  const [selectedApiProfileId, setSelectedApiProfileId] = useState<string>('');
+  const [newApiKeyName, setNewApiKeyName] = useState<string>('');
+  const [creatingApiKey, setCreatingApiKey] = useState(false);
+  const [loadingApiKeys, setLoadingApiKeys] = useState(false);
+  const [generatedRawToken, setGeneratedRawToken] = useState<string | null>(null);
+  const [copiedToken, setCopiedToken] = useState(false);
+
   const showSuccess = (msg: string) => {
     setError('');
     setNotice(msg);
@@ -165,6 +177,20 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const loadApiKeys = useCallback(async () => {
+    setLoadingApiKeys(true);
+    try {
+      const data = await backend.getApiKeys();
+      setApiKeys(data.apiKeys || []);
+      setApiProfiles(data.profiles || []);
+      setSelectedApiProfileId((prev) => prev || data.activeProfile?.id || data.profiles?.[0]?.id || '');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoadingApiKeys(false);
+    }
+  }, []);
+
   useEffect(() => {
 
     if (typeof window !== 'undefined') {
@@ -177,7 +203,51 @@ export default function SettingsPage() {
     loadMe();
     loadUsers();
     loadBrand();
-  }, [loadMe, loadUsers, loadBrand]);
+    loadApiKeys();
+  }, [loadMe, loadUsers, loadBrand, loadApiKeys]);
+
+  const handleCreateApiKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingApiKey(true);
+    setError('');
+    try {
+      const profName = apiProfiles.find((p) => p.id === selectedApiProfileId)?.username || 'Cliente';
+      const res = await backend.createApiKey({
+        profile_id: selectedApiProfileId || undefined,
+        name: newApiKeyName.trim() || `Hermes Agent - ${profName}`,
+      });
+      setApiKeys(res.apiKeys || []);
+      setGeneratedRawToken(res.rawToken);
+      setNewApiKeyName('');
+      showSuccess(`Chave de API criada para o perfil "${profName}"! Copie o token abaixo.`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setCreatingApiKey(false);
+    }
+  };
+
+  const handleRevokeApiKey = async (k: ApiKeyView) => {
+    if (!confirm(`Deseja revogar a chave "${k.name}" (${k.key_prefix})?`)) return;
+    setError('');
+    try {
+      const res = await backend.revokeApiKey(k.id);
+      setApiKeys(res.apiKeys || []);
+      showSuccess('Chave de API revogada.');
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
+
+  const handleCopyToken = async (token: string) => {
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopiedToken(true);
+      setTimeout(() => setCopiedToken(false), 2500);
+    } catch {
+      // ignore
+    }
+  };
 
   const handleSaveBrandProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1315,39 +1385,213 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* ABA 3: API */}
+          {/* ABA 3: API & INTEGRAÇÃO HERMES */}
           {activeTab === 'api' && (
-            <div className="nexo-panel p-6">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">API interna</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-                Endpoints do seu próprio servidor. Use-os para integrar outras ferramentas.
-              </p>
-              <div className="space-y-3 text-sm">
-                {[
-                  ['GET/PATCH/DELETE', '/api/auth/me', 'Dados da conta logada, senha e sessões'],
-                  ['GET/POST/PATCH/DELETE', '/api/users', 'Gestão de contas reais de usuários'],
-                  ['GET/PUT', '/api/brand-profile', 'Cérebro da Marca (Brand Context) vinculado ao perfil'],
-                  ['POST', '/api/ai/generate', 'Geração de copy/roteiro Gemini IA com Cérebro da Marca'],
-                  ['GET/POST/PATCH/DELETE', '/api/profiles', 'Gestão de clientes (perfis) do usuário'],
-                  ['GET/POST/DELETE', '/api/accounts', 'Lista, sincroniza OAuth e desconecta contas sociais'],
-                  ['POST', '/api/publish', 'Publica/agenda (multipart)'],
-                  ['GET', '/api/posts', 'Lista posts e status'],
-                  ['GET', '/api/schedule', 'Lista agendados'],
-                  ['PATCH/DELETE', '/api/schedule/:id', 'Reagenda ou cancela agendamento'],
-                  ['GET/POST', '/api/queue', 'Configurações de fila'],
-                  ['GET/POST', '/api/scheduler/run', 'Processa agendados vencidos'],
-                  ['GET/POST', '/api/ffmpeg', 'Processamento FFmpeg'],
-                  ['GET', '/api/audience', 'Dados de audiência e seguidores das contas'],
-                  ['GET/POST/DELETE', '/api/autodm', 'Regras e histórico de AutoDM'],
-                ].map(([method, path, desc]) => (
-                  <div key={path} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                    <span className="px-2 py-0.5 text-xs font-mono font-semibold bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 rounded">
-                      {method}
-                    </span>
-                    <code className="text-xs text-slate-900 dark:text-white flex-1">{path}</code>
-                    <span className="text-xs text-slate-500">{desc}</span>
+            <div className="space-y-6">
+              {/* Gerenciamento de Chaves de API (Hermes & REST v1) */}
+              <div className="nexo-panel p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-brand-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                      <Key className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                        Chaves de API por Cliente (Agente Hermes & REST v1)
+                      </h2>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Gere uma chave exclusiva (<code className="font-mono">nex_live_...</code>) para cada cliente/perfil. O Agente Hermes usa essa chave para agendar, publicar e consultar métricas daquele cliente com isolamento total.
+                      </p>
+                    </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Formulário para gerar nova chave */}
+                <form
+                  onSubmit={handleCreateApiKey}
+                  className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 mb-6"
+                >
+                  <div className="grid sm:grid-cols-3 gap-3 items-end">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Cliente (Perfil no NexoPost)
+                      </label>
+                      <select
+                        value={selectedApiProfileId}
+                        onChange={(e) => setSelectedApiProfileId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white"
+                      >
+                        {apiProfiles.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.username}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Identificação da Chave
+                      </label>
+                      <input
+                        type="text"
+                        value={newApiKeyName}
+                        onChange={(e) => setNewApiKeyName(e.target.value)}
+                        placeholder="Ex.: Hermes Agent - Gordinho Locações"
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <button
+                        type="submit"
+                        disabled={creatingApiKey}
+                        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-400 text-white rounded-xl text-sm font-semibold transition-colors"
+                      >
+                        {creatingApiKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        Gerar Chave de API
+                      </button>
+                    </div>
+                  </div>
+                </form>
+
+                {/* Exibição única do token recém-gerado */}
+                {generatedRawToken && (
+                  <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                        Chave gerada — copie agora (exibida apenas uma vez)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setGeneratedRawToken(null)}
+                        className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                      >
+                        Fechar
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs font-mono text-slate-900 dark:text-white select-all overflow-x-auto">
+                        {generatedRawToken}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyToken(generatedRawToken)}
+                        className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shrink-0"
+                      >
+                        {copiedToken ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        {copiedToken ? 'Copiado!' : 'Copiar'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Lista de chaves ativas */}
+                {loadingApiKeys ? (
+                  <div className="flex justify-center py-8 text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : apiKeys.length === 0 ? (
+                  <p className="text-sm text-slate-500 py-4 text-center">
+                    Nenhuma chave de API gerada ainda. Selecione um cliente acima e clique em <b>Gerar Chave de API</b>.
+                  </p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {apiKeys.map((k) => (
+                      <div
+                        key={k.id}
+                        className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                              {k.name}
+                            </span>
+                            <span className="px-2 py-0.5 text-[11px] font-semibold bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 rounded-full">
+                              Cliente: {k.profile_name || k.profile_id}
+                            </span>
+                            <code className="px-2 py-0.5 text-xs font-mono bg-slate-200/70 dark:bg-slate-900 text-slate-700 dark:text-slate-300 rounded">
+                              {k.key_prefix}
+                            </code>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Criada em {new Date(k.created_at).toLocaleString('pt-BR')} ·{' '}
+                            {k.last_used_at
+                              ? `Último uso: ${new Date(k.last_used_at).toLocaleString('pt-BR')}`
+                              : 'Nunca utilizada'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRevokeApiKey(k)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Revogar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Endpoints /api/v1/* (Autenticados via Bearer nex_live_...) */}
+              <div className="nexo-panel p-6">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <Terminal className="w-5 h-5 text-brand-500" />
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                    API Externa v1 (Hermes MCP & Automação)
+                  </h2>
+                </div>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                  Autentique com o cabeçalho <code className="font-mono">Authorization: Bearer nex_live_...</code>
+                </p>
+                <div className="space-y-3 text-sm mb-6">
+                  {[
+                    ['POST', '/api/v1/publish', 'Agenda ou publica vídeo/foto/texto no perfil da chave (multipart, local_media_path ou media_url)'],
+                    ['GET', '/api/v1/accounts', 'Lista redes sociais conectadas, seguidores e Cérebro da Marca do cliente'],
+                    ['GET/DELETE', '/api/v1/schedule', 'Lista a fila de agendamentos do cliente ou cancela um post agendado (?id=...)'],
+                    ['GET', '/api/v1/audience', 'Retorna métricas consolidadas de seguidores, alcance e crescimento do cliente'],
+                  ].map(([method, path, desc]) => (
+                    <div key={path} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                      <span className="px-2 py-0.5 text-xs font-mono font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded">
+                        {method}
+                      </span>
+                      <code className="text-xs text-slate-900 dark:text-white flex-1">{path}</code>
+                      <span className="text-xs text-slate-500">{desc}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">
+                  API Interna do Painel (Sessão Web)
+                </h3>
+                <div className="space-y-2.5 text-sm">
+                  {[
+                    ['GET/POST/DELETE', '/api/api-keys', 'Geração, listagem e revogação de chaves de API por perfil'],
+                    ['GET/PATCH/DELETE', '/api/auth/me', 'Dados da conta logada, senha e sessões'],
+                    ['GET/POST/PATCH/DELETE', '/api/users', 'Gestão de contas reais de usuários'],
+                    ['GET/PUT', '/api/brand-profile', 'Cérebro da Marca (Brand Context) vinculado ao perfil'],
+                    ['POST', '/api/ai/generate', 'Geração de copy/roteiro Gemini IA com Cérebro da Marca'],
+                    ['GET/POST/PATCH/DELETE', '/api/profiles', 'Gestão de clientes (perfis) do usuário'],
+                    ['GET/POST/DELETE', '/api/accounts', 'Lista, sincroniza OAuth e desconecta contas sociais'],
+                    ['POST', '/api/publish', 'Publica/agenda (multipart)'],
+                    ['GET', '/api/posts', 'Lista posts e status'],
+                    ['GET', '/api/schedule', 'Lista agendados'],
+                    ['PATCH/DELETE', '/api/schedule/:id', 'Reagenda ou cancela agendamento'],
+                    ['GET/POST', '/api/queue', 'Configurações de fila'],
+                    ['GET/POST', '/api/scheduler/run', 'Processa agendados vencidos'],
+                    ['GET/POST', '/api/ffmpeg', 'Processamento FFmpeg'],
+                    ['GET', '/api/audience', 'Dados de audiência e seguidores das contas'],
+                    ['GET/POST/DELETE', '/api/autodm', 'Regras e histórico de AutoDM'],
+                  ].map(([method, path, desc]) => (
+                    <div key={path} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                      <span className="px-2 py-0.5 text-xs font-mono font-semibold bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 rounded">
+                        {method}
+                      </span>
+                      <code className="text-xs text-slate-900 dark:text-white flex-1">{path}</code>
+                      <span className="text-xs text-slate-500">{desc}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
