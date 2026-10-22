@@ -19,10 +19,13 @@ const SCOPES = [
 ];
 
 function creds() {
+  const appUrl = (process.env.APP_URL || '').replace(/\/$/, '');
   return {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/oauth/youtube/callback',
+    redirectUri:
+      process.env.GOOGLE_REDIRECT_URI ||
+      (appUrl ? `${appUrl}/api/oauth/youtube/callback` : 'http://localhost:3000/api/oauth/youtube/callback'),
   };
 }
 

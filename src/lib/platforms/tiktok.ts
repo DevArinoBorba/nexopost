@@ -24,7 +24,8 @@ function creds() {
 }
 
 function redirectUri(): string {
-  return process.env.TIKTOK_REDIRECT_URI || 'http://localhost:3000/api/oauth/tiktok/callback';
+  const appUrl = (process.env.APP_URL || '').replace(/\/$/, '');
+  return process.env.TIKTOK_REDIRECT_URI || (appUrl ? `${appUrl}/api/oauth/tiktok/callback` : 'http://localhost:3000/api/oauth/tiktok/callback');
 }
 
 interface TikTokError {

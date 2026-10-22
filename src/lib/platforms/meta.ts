@@ -20,7 +20,8 @@ export function metaCreds() {
 
 export function redirectUri(platform: string): string {
   const envKey = `${platform.toUpperCase()}_REDIRECT_URI`;
-  return process.env[envKey] || `http://localhost:3000/api/oauth/${platform}/callback`;
+  const appUrl = (process.env.APP_URL || '').replace(/\/$/, '');
+  return process.env[envKey] || (appUrl ? `${appUrl}/api/oauth/${platform}/callback` : `http://localhost:3000/api/oauth/${platform}/callback`);
 }
 
 export function isConfigured(): boolean {

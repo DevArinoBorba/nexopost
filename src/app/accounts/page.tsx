@@ -19,6 +19,7 @@ import {
   Facebook,
   Edit3,
   ShieldCheck,
+  Copy,
 } from 'lucide-react';
 
 interface ProfileItem {
@@ -100,6 +101,22 @@ function AccountsContent() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [helpFor, setHelpFor] = useState<ProviderInfo | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [currentOrigin, setCurrentOrigin] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentOrigin(window.location.origin);
+    }
+  }, []);
+
+  const copyToClipboard = (text: string, id: string) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      setCopiedField(id);
+      setTimeout(() => setCopiedField(null), 2000);
+    }
+  };
 
   // Gestão rápida de clientes (perfis)
   const [newClientName, setNewClientName] = useState('');
@@ -771,17 +788,67 @@ function AccountsContent() {
                       </ol>
 
                       <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase mb-1">URI de Redirecionamento</p>
-                        <code className="block p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs text-slate-900 dark:text-white break-all">
-                          {PROVIDER_SETUP_GUIDES[helpFor.id].redirectUri}
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs font-semibold text-slate-500 uppercase">URI de Redirecionamento</p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copyToClipboard(
+                                `${currentOrigin || 'https://nexopost.oriumdigital.tech'}/api/oauth/${helpFor.id}/callback`,
+                                'redirectUri'
+                              )
+                            }
+                            className="inline-flex items-center gap-1 text-xs text-brand-600 dark:text-brand-400 hover:underline"
+                          >
+                            {copiedField === 'redirectUri' ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                <span className="text-emerald-500 font-medium">Copiado!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copiar URI</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <code className="block p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs text-slate-900 dark:text-white break-all font-mono">
+                          {`${currentOrigin || 'https://nexopost.oriumdigital.tech'}/api/oauth/${helpFor.id}/callback`}
                         </code>
                       </div>
 
                       <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                          Variáveis no arquivo .env.local
-                        </p>
-                        <pre className="p-3 bg-slate-900 text-slate-100 rounded-xl text-xs overflow-x-auto">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs font-semibold text-slate-500 uppercase">
+                            Variáveis no arquivo .env.local / Produção
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copyToClipboard(
+                                PROVIDER_SETUP_GUIDES[helpFor.id].envKeys
+                                  .map((k) => `${k}=`)
+                                  .join('\n'),
+                                'envKeys'
+                              )
+                            }
+                            className="inline-flex items-center gap-1 text-xs text-brand-600 dark:text-brand-400 hover:underline"
+                          >
+                            {copiedField === 'envKeys' ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                <span className="text-emerald-500 font-medium">Copiado!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copiar modelo</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <pre className="p-3 bg-slate-900 text-slate-100 rounded-xl text-xs overflow-x-auto font-mono">
                           {PROVIDER_SETUP_GUIDES[helpFor.id].envKeys.map((k) => `${k}=...`).join('\n')}
                         </pre>
                       </div>
