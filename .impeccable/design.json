@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-16T16:30:00-04:00",
+  "title": "NEXOPOST Workspace",
+  "extensions": {
+    "shadows": [{ "name": "notification", "value": "0 12px 32px #00000018", "purpose": "Elevação do painel de notificações." }],
+    "motion": [{ "name": "drawer", "value": "transform 180ms ease-out", "purpose": "Entrada do menu móvel; desativada quando há preferência por movimento reduzido." }],
+    "breakpoints": [{ "name": "mobile", "value": "640px" }, { "name": "sidebar", "value": "1024px" }, { "name": "composer", "value": "1200px" }]
+  },
+  "components": [
+    { "name": "Ação principal", "kind": "button", "refersTo": "primary-action", "description": "Ação de publicação em preto/branco conforme o tema.", "html": "<button class=\"nexo-primary\">Publicar</button>", "css": ".nexo-primary{background:var(--nexo-action,#0b1721);color:var(--nexo-action-text,#ffffff);border:0;border-radius:6px;min-height:34px;padding:8px 14px;font:600 12px 'DM Sans',sans-serif;cursor:pointer}.nexo-primary:hover{opacity:.85}.nexo-primary:focus-visible{outline:2px solid var(--nexo-accent,#6046ff);outline-offset:3px}" },
+    { "name": "Painel", "kind": "card", "refersTo": "panel", "description": "Contêiner de conteúdo com borda discreta.", "html": "<section class=\"nexo-panel\">Contas conectadas</section>", "css": ".nexo-panel{background:var(--nexo-surface,#ffffff);color:var(--nexo-text,#0c1924);border:1px solid var(--nexo-border,#e3e9f0);border-radius:9px;padding:20px;font:500 13px 'DM Sans',sans-serif}" }
+  ],
+  "narrative": {
+    "northStar": "Publicar, agendar e gerenciar marcas com clareza.",
+    "overview": "Interface compacta baseada na referência fornecida pelo usuário, com navegação fixa e linguagem consistente nas dez telas internas.",
+    "keyCharacteristics": ["Contornos finos", "Superfícies azul-preto no escuro", "Violeta nos estados ativos", "Dados reais"],
+    "rules": [{ "name": "Preservação dos fluxos", "body": "A apresentação muda; handlers, contratos e validações são preservados.", "section": "components" }],
+    "dos": ["Usar os tokens --nexo-*.", "Dar recuperação aos estados vazios e de falha."],
+    "donts": ["Não copiar os números ilustrativos da referência.", "Não adicionar controles sem comportamento real."]
+  }
+}

@@ -2,8 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import AppShell from '@/components/AppShell';
 import PlatformIcon from '@/components/PlatformIcon';
 import { backend } from '@/lib/client';
 import {
@@ -692,54 +691,36 @@ export default function UploadPage() {
     pendingBulkCount > 0;
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Sidebar />
-      <div className="flex-1 lg:ml-64">
-        <Header title="Upload & Agendamento" subtitle="Publicação individual ou fila inteligente em massa" />
-        <main className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
-          {/* Seletor de Modo: Post Único vs Upload em Massa com Agendamento Inteligente */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-2 mb-6 shadow-sm">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setUploadMode('single')}
-                className={`flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl font-semibold text-sm transition-all ${
-                  uploadMode === 'single'
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                <Upload className="w-4 h-4" />
-                <span>Post Único (Individual)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setUploadMode('bulk');
-                  setContentType('video');
-                }}
-                className={`flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl font-semibold text-sm transition-all ${
-                  uploadMode === 'bulk'
-                    ? 'bg-gradient-to-r from-brand-600 via-indigo-600 to-violet-600 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                <Layers className="w-4 h-4" />
-                <span>Upload em Massa & Fila Inteligente</span>
-                {bulkItems.length > 0 && (
-                  <span
-                    className={`px-2 py-0.5 text-xs rounded-full font-bold ${
-                      uploadMode === 'bulk'
-                        ? 'bg-white/20 text-white'
-                        : 'bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300'
-                    }`}
-                  >
-                    {bulkItems.length}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
+    <AppShell title="Publicar" subtitle="Crie um post individual ou envie em massa" className="nexo-main-focused">
+      <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl mb-6 max-w-md" role="group" aria-label="Modo de publicação">
+        <button
+          type="button"
+          onClick={() => setUploadMode('single')}
+          className={`flex-1 py-2 px-4 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+            uploadMode === 'single'
+              ? 'bg-white dark:bg-[#111923] text-[#6046ff] dark:text-[#a08fff] shadow-xs border border-slate-200 dark:border-slate-700'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Upload size={14} />
+          Post Único (Individual)
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setUploadMode('bulk');
+            setContentType('video');
+          }}
+          className={`flex-1 py-2 px-4 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+            uploadMode === 'bulk'
+              ? 'bg-white dark:bg-[#111923] text-[#6046ff] dark:text-[#a08fff] shadow-xs border border-slate-200 dark:border-slate-700'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Layers size={14} />
+          Upload em Massa{bulkItems.length > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#6046ff]/10 text-[10px]">({bulkItems.length})</span>}
+        </button>
+      </div>
 
           {connected.length === 0 && (
             <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl flex items-start gap-2">
@@ -747,7 +728,7 @@ export default function UploadPage() {
               <p className="text-sm text-amber-700 dark:text-amber-300">
                 Nenhuma conta conectada. Vá em{' '}
                 <a href="/accounts" className="underline font-medium">
-                  Accounts
+                  Contas
                 </a>{' '}
                 para conectar suas redes sociais antes de publicar ou agendar.
               </p>
@@ -762,7 +743,7 @@ export default function UploadPage() {
           )}
 
           {/* Plataformas (comum para ambos os modos) */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
+          <div className="nexo-panel p-6 mb-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">
                 Plataformas de Destino ({selectedPlatforms.length} selecionada{selectedPlatforms.length === 1 ? '' : 's'})
@@ -818,7 +799,7 @@ export default function UploadPage() {
                ============================================================ */
             <>
               {/* 1. Parâmetros do Agendamento em Fila / Lote */}
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
+              <div className="nexo-panel p-6 mb-6">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-900/30 border border-brand-200 dark:border-brand-800 flex items-center justify-center text-brand-600 dark:text-brand-400">
@@ -991,7 +972,7 @@ export default function UploadPage() {
               </div>
 
               {/* 2. Dropzone de Seleção Múltipla de Vídeos */}
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
+              <div className="nexo-panel p-6 mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Selecionar Vídeos em Lote
@@ -1058,7 +1039,7 @@ export default function UploadPage() {
 
               {/* 3. Barra de Geração de Títulos/Legendas em Lote com Gemini IA */}
               {bulkItems.length > 0 && (
-                <div className="mb-6 p-4 rounded-xl border border-violet-200 dark:border-violet-900/60 bg-gradient-to-br from-violet-50/80 via-indigo-50/40 to-purple-50/50 dark:from-violet-950/25 dark:via-indigo-950/20 dark:to-purple-950/20">
+                <div className="mb-6 p-4 rounded-xl border border-violet-200 dark:border-violet-900/60 bg-slate-50 dark:bg-slate-800/40">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center text-white shadow-sm shrink-0">
@@ -1078,7 +1059,7 @@ export default function UploadPage() {
                       type="button"
                       disabled={isGeneratingBulkAi || isBulkUploading}
                       onClick={handleGenerateBulkAi}
-                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-sm disabled:opacity-50 transition-all"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl bg-brand-600 text-white shadow-sm disabled:opacity-50 transition-all"
                     >
                       {isGeneratingBulkAi && bulkAiProgress ? (
                         <>
@@ -1152,7 +1133,7 @@ export default function UploadPage() {
                       className={`h-full transition-all duration-300 ${
                         bulkProgress.finished && bulkProgress.failed === 0
                           ? 'bg-emerald-500'
-                          : 'bg-gradient-to-r from-brand-600 to-indigo-600'
+                          : 'bg-brand-600'
                       }`}
                       style={{
                         width: `${Math.round((bulkProgress.current / Math.max(1, bulkProgress.total)) * 100)}%`,
@@ -1199,7 +1180,7 @@ export default function UploadPage() {
 
               {/* 5. Lista Prévia dos Vídeos com Thumbnail, Título Editável e Badge de Data/Hora */}
               {bulkItems.length > 0 && (
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
+                <div className="nexo-panel p-6 mb-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-bold text-slate-800 dark:text-white">
                       Fila de Vídeos Selecionados ({bulkItems.length})
@@ -1421,7 +1402,7 @@ export default function UploadPage() {
                     type="button"
                     onClick={() => handleBulkSchedule(false)}
                     disabled={!canSubmitBulk}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-brand-600 via-indigo-600 to-violet-600 hover:from-brand-500 hover:to-indigo-500 disabled:from-slate-300 disabled:to-slate-300 dark:disabled:from-slate-800 dark:disabled:to-slate-800 text-white rounded-xl font-bold shadow-sm transition-all disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-xl font-bold shadow-sm transition-all disabled:cursor-not-allowed"
                   >
                     {isBulkUploading && bulkProgress ? (
                       <>
@@ -1444,47 +1425,41 @@ export default function UploadPage() {
             /* ============================================================
                MODO: POST ÚNICO (FLUXO ORIGINAL INTACTO)
                ============================================================ */
-            <>
-              {/* Content Type */}
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
-                <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">Tipo de conteúdo</h3>
+            <div className="space-y-6">
+              {/* Content Type Selector */}
+              <div className="nexo-panel p-5 sm:p-6">
+                <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                  Tipo de conteúdo
+                </h3>
                 <div className="grid grid-cols-3 gap-3">
-                  {contentTypes.map((type) => (
-                    <button
-                      key={type.id}
-                      type="button"
-                      onClick={() => {
-                        setContentType(type.id as ContentType);
-                        setFiles([]);
-                        setResult(null);
-                      }}
-                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                        contentType === type.id
-                          ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
-                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      <type.icon className={`w-6 h-6 ${contentType === type.id ? 'text-brand-600' : 'text-slate-400'}`} />
-                      <span
-                        className={`text-sm font-medium ${
-                          contentType === type.id ? 'text-brand-600' : 'text-slate-600 dark:text-slate-400'
+                  {contentTypes.map((type) => {
+                    const isSelected = contentType === type.id;
+                    return (
+                      <button
+                        key={type.id}
+                        type="button"
+                        onClick={() => {
+                          setContentType(type.id as ContentType);
+                          setFiles([]);
+                          setResult(null);
+                        }}
+                        className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl border text-xs font-semibold transition-all ${
+                          isSelected
+                            ? 'border-[#6046ff] bg-[#f0edff]/70 dark:bg-[#1d2440] text-[#6046ff] dark:text-[#a08fff] shadow-xs'
+                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111923] text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
                         }`}
                       >
-                        {type.label}
-                      </span>
-                    </button>
-                  ))}
+                        <type.icon size={16} />
+                        <span>{type.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Upload area */}
+              {/* Upload Dropzone */}
               {contentType !== 'text' && (
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                      {contentType === 'video' ? 'Enviar vídeo (selecione vários para ir para a Fila em Massa)' : 'Enviar foto'}
-                    </h3>
-                  </div>
+                <div className="nexo-panel p-6 sm:p-8">
                   {files.length === 0 ? (
                     <div
                       onDragOver={(e) => {
@@ -1493,437 +1468,318 @@ export default function UploadPage() {
                       }}
                       onDragLeave={() => setIsDragging(false)}
                       onDrop={handleDrop}
-                      className={`relative border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
+                      className={`relative border-2 border-dashed rounded-xl py-10 px-4 text-center transition-colors ${
                         isDragging
-                          ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
-                          : 'border-slate-300 dark:border-slate-700 hover:border-brand-500'
+                          ? 'border-[#6046ff] bg-[#f0edff]/30 dark:bg-[#1c1f3b]/30'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                       }`}
                     >
                       <input
                         ref={fileInputRef}
                         type="file"
-                        multiple
+                        aria-label="Selecionar mídia para publicação"
+                        multiple={contentType === 'photo'}
                         accept={contentType === 'video' ? 'video/*' : 'image/*'}
                         onChange={(e) => e.target.files && addFiles(e.target.files)}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       />
-                      <Upload className="w-12 h-12 mx-auto text-slate-400 mb-4" />
-                      <p className="text-lg font-medium text-slate-900 dark:text-white mb-1">Arraste e solte aqui</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        ou clique para escolher do computador (selecionando 2+ vídeos ativa o Agendamento em Fila)
+                      <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-500">
+                        <Upload size={22} strokeWidth={1.75} />
+                      </div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white mb-1">
+                        Arraste e solte o arquivo aqui
+                      </p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">
+                        ou clique para selecionar do computador
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="inline-flex items-center justify-center px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-lg transition-colors border border-slate-200 dark:border-slate-700"
+                      >
+                        Selecionar arquivo
+                      </button>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-4">
+                        {contentType === 'video'
+                          ? 'MP4, MOV, WebM, MKV (máx. 500MB)'
+                          : 'JPG, PNG, WebP (máx. 20MB cada)'}
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Arquivo selecionado ({files.length})
+                        </span>
+                        {contentType === 'photo' && (
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-xs font-semibold text-[#6046ff] hover:underline"
+                          >
+                            + Adicionar mais fotos
+                          </button>
+                        )}
+                      </div>
                       {files.map((f, i) => (
-                        <div key={i} className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                          <div className="w-12 h-12 bg-slate-200 dark:bg-slate-700 rounded-lg flex items-center justify-center">
+                        <div
+                          key={i}
+                          className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-[#0d1620] border border-slate-200/80 dark:border-slate-800 rounded-xl"
+                        >
+                          <div className="w-10 h-10 bg-slate-200 dark:bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
                             {contentType === 'video' ? (
-                              <FileVideo className="w-6 h-6 text-slate-500" />
+                              <FileVideo className="w-5 h-5 text-slate-500" />
                             ) : (
-                              <ImageIcon className="w-6 h-6 text-slate-500" />
+                              <ImageIcon className="w-5 h-5 text-slate-500" />
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-slate-900 dark:text-white truncate">{f.name}</p>
-                            <p className="text-sm text-slate-500">{(f.size / 1024 / 1024).toFixed(2)} MB</p>
+                            <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                              {f.name}
+                            </p>
+                            <p className="text-[11px] text-slate-400">
+                              {(f.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
                           </div>
                           <button
                             type="button"
                             onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
-                            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-red-500 rounded-md transition-colors"
+                            title="Remover arquivo"
                           >
-                            <X className="w-5 h-5" />
+                            <X size={16} />
                           </button>
                         </div>
                       ))}
-                      {contentType === 'photo' && (
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="text-sm text-brand-600 hover:text-brand-700 font-medium"
-                        >
-                          + Adicionar mais fotos{files.length > 1 ? ` (${files.length} no carrossel)` : ''}
-                        </button>
-                      )}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Details */}
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
+              {/* Detalhes do Post */}
+              <div className="nexo-panel p-5 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Detalhes do Post</h3>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Detalhes do post</h3>
                   <button
                     type="button"
                     onClick={() => setShowAiAssistant((prev) => !prev)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-sm transition-all hover:scale-[1.02]"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#6046ff]/10 hover:bg-[#6046ff]/20 text-[#6046ff] dark:text-[#a08fff] transition-colors"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>{showAiAssistant ? 'Ocultar Assistente IA' : '✨ Gerar com Gemini IA'}</span>
+                    <Sparkles size={13} />
+                    <span>{showAiAssistant ? 'Fechar IA' : '✨ Gerar com Gemini IA'}</span>
                   </button>
                 </div>
 
-                {/* AI Assistant Drawer */}
+                {/* Gemini AI Assistant Drawer */}
                 {showAiAssistant && (
-                  <div className="mb-6 p-4 rounded-xl border border-violet-200 dark:border-violet-900/60 bg-gradient-to-br from-violet-50/70 via-indigo-50/40 to-purple-50/50 dark:from-violet-950/20 dark:via-indigo-950/20 dark:to-purple-950/20 transition-all">
+                  <div className="mb-5 p-4 rounded-xl border border-violet-200 dark:border-violet-900/60 bg-violet-50/40 dark:bg-violet-950/20">
                     <div className="flex items-center gap-2 mb-3">
-                      <div className="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center text-white shadow-sm">
-                        <Sparkles className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-800 dark:text-white">
-                          Assistente Gemini de Copywriting
-                        </h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Gere ganchos virais, roteiros e legendas de alto impacto direto com o Google Gemini.
-                        </p>
-                      </div>
+                      <Sparkles size={15} className="text-[#6046ff]" />
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">
+                        Assistente Gemini de Copywriting
+                      </span>
                     </div>
-
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                          Sobre o que é seu post ou vídeo?
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={aiTopic}
-                            onChange={(e) => setAiTopic(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleGenerateAi()}
-                            placeholder="Ex: 3 erros que destroem o alcance dos Reels e como consertar..."
-                            className="flex-1 px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-violet-500 focus:outline-none"
-                          />
+                    <div className="flex gap-2 mb-2">
+                      <input
+                        type="text"
+                        value={aiTopic}
+                        onChange={(e) => setAiTopic(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleGenerateAi()}
+                        placeholder="Tema: Ex: 3 dicas para vender mais pelo Reels..."
+                        className="flex-1 px-3 py-2 text-xs bg-white dark:bg-[#111923] border border-slate-200 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white"
+                      />
+                      <button
+                        type="button"
+                        disabled={isGeneratingAi}
+                        onClick={handleGenerateAi}
+                        className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-[#6046ff] text-white hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {isGeneratingAi ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
+                        Gerar
+                      </button>
+                    </div>
+                    {aiError && <p className="text-xs text-red-500 mt-1">{aiError}</p>}
+                    {aiGenerated && (
+                      <div className="mt-3 p-3 bg-white dark:bg-[#111923] border border-slate-200 dark:border-slate-800 rounded-lg text-xs space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">Sugestão gerada:</span>
                           <button
                             type="button"
-                            disabled={isGeneratingAi}
-                            onClick={handleGenerateAi}
-                            className="px-4 py-2 text-sm font-semibold rounded-lg bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-50 flex items-center gap-2 shadow-sm transition-all"
+                            onClick={() => applyAiContent()}
+                            className="text-[#6046ff] font-semibold hover:underline flex items-center gap-1"
                           >
-                            {isGeneratingAi ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>Gerando...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Wand2 className="w-4 h-4" />
-                                <span>Gerar</span>
-                              </>
-                            )}
+                            <Copy size={12} />
+                            Aplicar ao formulário
                           </button>
                         </div>
+                        <p className="font-medium text-slate-900 dark:text-white">{aiGenerated.title}</p>
+                        <p className="text-slate-500 whitespace-pre-line line-clamp-3">{aiGenerated.description}</p>
                       </div>
-
-                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        <span className="text-xs text-slate-500 dark:text-slate-400 mr-1">Tom:</span>
-                        {[
-                          { label: '🔥 Viral & Persuasivo', value: 'viral, dinâmico e persuasivo' },
-                          { label: '🎓 Educativo / Passo a Passo', value: 'educativo, claro e didático' },
-                          { label: '💼 Vendas & Conversão', value: 'focado em vendas e chamada para ação forte' },
-                          { label: '⚡ Rápido / Direto ao Ponto', value: 'ultrarrápido, provocativo e conciso' },
-                        ].map((t) => (
-                          <button
-                            key={t.value}
-                            type="button"
-                            onClick={() => setAiTone(t.value)}
-                            className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
-                              aiTone === t.value
-                                ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
-                                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-violet-300'
-                            }`}
-                          >
-                            {t.label}
-                          </button>
-                        ))}
-                      </div>
-
-                      {aiError && (
-                        <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 shrink-0" />
-                          <span>{aiError}</span>
-                        </div>
-                      )}
-
-                      {appliedNotification && (
-                        <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2 animate-in fade-in">
-                          <CheckCheck className="w-4 h-4 shrink-0" />
-                          <span>Conteúdo da IA aplicado com sucesso no título e descrição!</span>
-                        </div>
-                      )}
-
-                      {aiGenerated && (
-                        <div className="mt-3 p-3.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 space-y-3">
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[11px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">
-                                Título Sugerido
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => applyAiContent()}
-                                className="text-xs font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400 flex items-center gap-1"
-                              >
-                                <Copy className="w-3 h-3" />
-                                Aplicar tudo no post
-                              </button>
-                            </div>
-                            <p className="text-sm font-semibold text-slate-800 dark:text-white bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                              {aiGenerated.title}
-                            </p>
-                          </div>
-
-                          {aiGenerated.alternativeTitles?.length > 0 && (
-                            <div>
-                              <span className="text-[11px] font-medium text-slate-500 block mb-1">
-                                Ou escolha outro gancho:
-                              </span>
-                              <div className="flex flex-wrap gap-1.5">
-                                {aiGenerated.alternativeTitles.map((altTitle, idx) => (
-                                  <button
-                                    key={idx}
-                                    type="button"
-                                    onClick={() => applyAiContent(altTitle)}
-                                    className="text-xs px-2.5 py-1 rounded-md bg-slate-100 hover:bg-violet-100 dark:bg-slate-800 dark:hover:bg-violet-950/50 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-left transition-all"
-                                  >
-                                    ⚡ {altTitle}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <div>
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400 block mb-1">
-                              Legenda & Hashtags
-                            </span>
-                            <div className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-line bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 max-h-40 overflow-y-auto">
-                              {aiGenerated.description}
-                              {aiGenerated.callToAction && `\n\n${aiGenerated.callToAction}`}
-                              {aiGenerated.hashtags?.length > 0 && `\n\n${aiGenerated.hashtags.join(' ')}`}
-                            </div>
-                          </div>
-
-                          <div className="pt-1 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => applyAiContent()}
-                              className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-sm transition-all"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Aplicar Título e Legenda ao Post</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 )}
 
                 <div className="space-y-4">
+                  {/* Título */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                      {contentType === 'text' ? 'Texto do post *' : 'Título *'}
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Título *
                     </label>
-                    {contentType === 'text' ? (
-                      <textarea
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        rows={4}
-                        placeholder="Escreva o conteúdo..."
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:outline-none resize-none"
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder="Um título chamativo..."
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                      />
-                    )}
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Um título chamativo..."
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#0d1620] border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#6046ff]"
+                    />
                   </div>
-                  {contentType !== 'text' && (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+
+                  {/* Descrição */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                         Descrição
                       </label>
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        rows={4}
-                        placeholder="Descrição..."
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:outline-none resize-none"
-                      />
+                      <span className="text-[11px] text-slate-400">
+                        {description.length}/2200
+                      </span>
                     </div>
-                  )}
-                </div>
-              </div>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={4}
+                      maxLength={2200}
+                      placeholder="Escreva a legenda do seu post..."
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-[#0d1620] border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#6046ff] resize-none"
+                    />
+                  </div>
 
-              {/* Scheduling */}
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
-                <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">Formato e visibilidade</h3>
-                {contentType !== 'text' && (
-                  <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                  {/* 2x2 Grid: Formato, Visibilidade, Data, Hora */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    {/* Formato */}
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                         Formato
                       </label>
                       <select
                         value={format}
                         onChange={(e) => setFormat(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0d1620] border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#6046ff]"
                       >
                         <option value="feed">
                           {contentType === 'video' ? 'Feed / Reels' : 'Feed'}
-                          {files.length > 1 ? ' (carrossel)' : ''}
                         </option>
                         <option value="story">Story</option>
                       </select>
                     </div>
-                    {contentType === 'video' && (
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                          Visibilidade
-                        </label>
-                        <select
-                          value={privacy}
-                          onChange={(e) => setPrivacy(e.target.value)}
-                          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                        >
-                          <option value="public">Público</option>
-                          <option value="unlisted">Não listado</option>
-                          <option value="private">Privado</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {format === 'story' && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 mb-4">
-                    Story: use apenas <b>uma</b> mídia e formato vertical (9:16). Vale para Instagram e Facebook.
-                  </p>
-                )}
-                {contentType === 'photo' && files.length > 1 && (
-                  <p className="text-xs text-slate-500 mb-4">
-                    {files.length} fotos serão publicadas como carrossel no Instagram (até 10) e álbum no Facebook.
-                  </p>
-                )}
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                      <Calendar className="w-4 h-4 inline mr-1" />
-                      Data
-                    </label>
-                    <input
-                      type="date"
-                      value={scheduledDate}
-                      onChange={(e) => setScheduledDate(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                      <Clock className="w-4 h-4 inline mr-1" />
-                      Hora
-                    </label>
-                    <input
-                      type="time"
-                      value={scheduledTime}
-                      onChange={(e) => setScheduledTime(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                    />
+
+                    {/* Visibilidade */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Visibilidade
+                      </label>
+                      <select
+                        value={privacy}
+                        onChange={(e) => setPrivacy(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0d1620] border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#6046ff]"
+                      >
+                        <option value="public">Público</option>
+                        <option value="unlisted">Não listado</option>
+                        <option value="private">Privado</option>
+                      </select>
+                    </div>
+
+                    {/* Data */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Data
+                      </label>
+                      <input
+                        type="date"
+                        value={scheduledDate}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0d1620] border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#6046ff]"
+                      />
+                    </div>
+
+                    {/* Hora */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Hora
+                      </label>
+                      <input
+                        type="time"
+                        value={scheduledTime}
+                        onChange={(e) => setScheduledTime(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0d1620] border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#6046ff]"
+                      />
+                    </div>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500 mt-2">Deixe vazio para publicar agora.</p>
+
+                {/* Bottom Bar: Platform Info & Submit Button */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 mt-6 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <span>Publicando em:</span>
+                    <div className="flex items-center gap-1">
+                      {selectedPlatforms.map((p) => (
+                        <PlatformIcon key={p} platform={p} size="sm" />
+                      ))}
+                    </div>
+                    {selectedPlatforms.length === 0 && (
+                      <span className="text-amber-500 font-medium">Selecione ao menos 1 rede</span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleUpload}
+                    disabled={!canSubmit}
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-lg text-xs font-semibold transition-all bg-[#0b1721] hover:bg-[#1a2936] text-white dark:bg-white dark:text-[#0b1721] dark:hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Enviando...</span>
+                      </>
+                    ) : result?.status === 'published' ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-500" />
+                        <span>Publicado!</span>
+                      </>
+                    ) : (
+                      <span>{scheduledDate ? 'Agendar post' : 'Publicar post'}</span>
+                    )}
+                  </button>
+                </div>
               </div>
 
-              {/* Result */}
+              {/* Resultado se houver */}
               {result && (
-                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
-                  <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">Resultado</h3>
+                <div className="nexo-panel p-5">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white mb-2">Resultado</h4>
                   {result.status === 'scheduled' ? (
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm text-amber-600 dark:text-amber-400">
-                        Agendado para {new Date(result.scheduled_at!).toLocaleString('pt-BR')} em{' '}
-                        {result.platforms?.join(', ')}
-                      </p>
-                      <Link
-                        href="/schedule"
-                        className="text-xs font-semibold text-brand-600 hover:underline flex items-center gap-1"
-                      >
-                        <CalendarCheck className="w-4 h-4" />
-                        Ver no Calendário (/schedule)
-                      </Link>
-                    </div>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Post agendado para {new Date(result.scheduled_at!).toLocaleString('pt-BR')} em{' '}
+                      {result.platforms?.join(', ')}
+                    </p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {result.results?.map((r) => (
-                        <div
-                          key={r.platform}
-                          className={`flex items-start gap-3 p-3 rounded-lg border ${
-                            r.success
-                              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                          }`}
-                        >
-                          <PlatformIcon platform={r.platform} size="sm" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium capitalize text-slate-900 dark:text-white">
-                              {r.platform}
-                            </p>
-                            {r.error ? (
-                              <p className="text-xs text-red-600 dark:text-red-400">{r.error}</p>
-                            ) : (
-                              <p className="text-xs text-green-600 dark:text-green-400">
-                                Publicado{r.post_url ? ` — ${r.post_url}` : ''}
-                              </p>
-                            )}
-                          </div>
+                        <div key={r.platform} className="text-xs flex items-center justify-between">
+                          <span className="capitalize">{r.platform}</span>
+                          <span className={r.success ? 'text-emerald-500' : 'text-red-500'}>
+                            {r.success ? 'Publicado' : r.error || 'Falha'}
+                          </span>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               )}
-
-              {/* Submit */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <AlertCircle className="w-4 h-4" />
-                  {selectedPlatforms.length} plataforma(s)
-                </div>
-                <button
-                  type="button"
-                  onClick={handleUpload}
-                  disabled={!canSubmit}
-                  className="flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white rounded-xl font-medium transition-colors disabled:cursor-not-allowed"
-                >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Enviando...
-                    </>
-                  ) : result?.status === 'published' ? (
-                    <>
-                      <Check className="w-5 h-5" />
-                      Publicado!
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-5 h-5" />
-                      {scheduledDate ? 'Agendar' : 'Publicar agora'}
-                    </>
-                  )}
-                </button>
-              </div>
-            </>
+            </div>
           )}
-        </main>
-      </div>
-    </div>
+        </AppShell>
   );
 }

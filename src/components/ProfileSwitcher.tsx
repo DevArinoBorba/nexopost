@@ -21,9 +21,11 @@ export default function ProfileSwitcher() {
   const [newName, setNewName] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const data = await backend.getProfiles();
       setProfiles(data.profiles || []);
@@ -35,6 +37,8 @@ export default function ProfileSwitcher() {
       } else {
         setActiveId(cookie);
       }
+    } catch {
+      setError('Não foi possível carregar os clientes.');
     } finally {
       setLoading(false);
     }
@@ -72,12 +76,12 @@ export default function ProfileSwitcher() {
   };
 
   return (
-    <div className="px-3 mb-2">
+    <div className="nexo-profile">
       <button
-        onClick={() => setOpen(!open)}
+        aria-expanded={open} aria-controls="profile-options" onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-2 px-3 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
       >
-        <div className="w-7 h-7 bg-gradient-to-br from-brand-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+        <div className="w-7 h-7 bg-brand-600 rounded-lg flex items-center justify-center flex-shrink-0">
           <Building2 className="w-4 h-4 text-white" />
         </div>
         <div className="flex-1 min-w-0 text-left">
@@ -89,8 +93,9 @@ export default function ProfileSwitcher() {
         <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
       </button>
 
+      {error && <button type="button" onClick={load} className="mt-2 text-xs text-red-600 dark:text-red-400 text-left" title={error}>Tentar carregar clientes novamente</button>}
       {open && (
-        <div className="mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden">
+        <div id="profile-options" className="mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg overflow-hidden">
           <div className="max-h-56 overflow-y-auto">
             {profiles.map((p) => (
               <button

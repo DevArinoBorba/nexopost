@@ -6,6 +6,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import PlatformIcon from '@/components/PlatformIcon';
 import BrandLogo from '@/components/BrandLogo';
+import { useTheme } from '@/components/ThemeProvider';
 import {
   Upload,
   ArrowRight,
@@ -124,20 +125,12 @@ const FAQ_ITEMS = [
 export default function HomePage() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const { isDark, setTheme } = useTheme();
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [showWhatsappTooltip, setShowWhatsappTooltip] = useState(true);
 
-  useEffect(() => {
-    setIsDark(document.documentElement.classList.contains('dark'));
-  }, []);
 
-  const toggleTheme = () => {
-    const next = !isDark;
-    setIsDark(next);
-    document.documentElement.classList.toggle('dark', next);
-    localStorage.setItem('theme', next ? 'dark' : 'light');
-  };
+  const toggleTheme = () => setTheme(isDark ? 'light' : 'dark');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

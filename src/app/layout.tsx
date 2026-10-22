@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { ThemeProvider } from '@/components/ThemeProvider'
 import { AuthProvider } from '@/components/AuthProvider'
 
 export const metadata: Metadata = {
@@ -20,9 +21,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                const theme = localStorage.getItem('theme');
+                let theme; try { theme = localStorage.getItem('theme'); } catch {};
                 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                if (theme === 'dark' || (!theme && prefersDark)) {
+                if (theme === 'dark' || ((!theme || theme === 'system') && prefersDark)) {
                   document.documentElement.classList.add('dark');
                 }
               })();
@@ -31,9 +32,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-        <AuthProvider>
+        <ThemeProvider><AuthProvider>
           {children}
-        </AuthProvider>
+        </AuthProvider></ThemeProvider>
       </body>
     </html>
   )

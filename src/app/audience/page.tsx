@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import AppShell from '@/components/AppShell';
 import PlatformIcon from '@/components/PlatformIcon';
 import { backend, type AudienceResponse } from '@/lib/client';
 import {
@@ -65,11 +64,7 @@ export default function AudiencePage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Sidebar />
-      <div className="flex-1 lg:ml-64">
-        <Header title="Audiência" subtitle="Demografia, seguidores reais e horários de pico do cliente ativo" />
-        <main className="p-4 sm:p-6 lg:p-8 space-y-6">
+    <AppShell title="Audiência" subtitle="Demografia, seguidores reais e horários de pico do cliente ativo" className="space-y-6">
           {/* Barra superior de filtros e contas reais */}
           <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-2">
@@ -130,7 +125,7 @@ export default function AudiencePage() {
 
           {/* Contas reais conectadas deste cliente */}
           {data?.realAccounts && data.realAccounts.length > 0 && (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+            <div className="nexo-panel p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-500" />
@@ -176,7 +171,7 @@ export default function AudiencePage() {
             <>
               {/* Cards de KPIs */}
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="p-5 nexo-panel">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs font-medium text-slate-500">Base de Seguidores</span>
                     <Users className="w-5 h-5 text-brand-600" />
@@ -189,7 +184,7 @@ export default function AudiencePage() {
                   </p>
                 </div>
 
-                <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="p-5 nexo-panel">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs font-medium text-slate-500">Novos Seguidores</span>
                     <TrendingUp className="w-5 h-5 text-emerald-600" />
@@ -200,7 +195,7 @@ export default function AudiencePage() {
                   <p className="text-xs text-slate-500 mt-1">Crescimento líquido ({period})</p>
                 </div>
 
-                <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="p-5 nexo-panel">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs font-medium text-slate-500">Taxa de Engajamento</span>
                     <Sparkles className="w-5 h-5 text-amber-500" />
@@ -211,7 +206,7 @@ export default function AudiencePage() {
                   <p className="text-xs text-slate-500 mt-1">Interações por alcance</p>
                 </div>
 
-                <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="p-5 nexo-panel">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs font-medium text-slate-500">Alcance Estimado</span>
                     <Globe className="w-5 h-5 text-indigo-500" />
@@ -225,7 +220,7 @@ export default function AudiencePage() {
 
               {/* Gráficos Demográficos: Faixa Etária & Gênero */}
               <div className="grid lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+                <div className="lg:col-span-2 nexo-panel p-6">
                   <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4">
                     Distribuição por Faixa Etária (%)
                   </h3>
@@ -243,7 +238,7 @@ export default function AudiencePage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+                <div className="nexo-panel p-6">
                   <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4">Gênero</h3>
                   <div className="h-48">
                     <ResponsiveContainer width="100%" height="100%">
@@ -281,7 +276,7 @@ export default function AudiencePage() {
 
               {/* Geografia + Melhores Horários */}
               <div className="grid lg:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+                <div className="nexo-panel p-6">
                   <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-brand-600" />
                     Principais Países e Cidades
@@ -316,7 +311,7 @@ export default function AudiencePage() {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+                <div className="nexo-panel p-6">
                   <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                     <Clock className="w-4 h-4 text-brand-600" />
                     Recomendações de Publicação
@@ -342,8 +337,6 @@ export default function AudiencePage() {
               </div>
             </>
           )}
-        </main>
-      </div>
-    </div>
+        </AppShell>
   );
 }

@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import AppShell from '@/components/AppShell';
 import PlatformIcon from '@/components/PlatformIcon';
 import { backend, type ConnectedAccount, type ProviderInfo } from '@/lib/client';
 import {
@@ -295,11 +294,7 @@ function AccountsContent() {
   const isConnected = (id: string) => accounts.some((a) => a.platform === id);
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Sidebar />
-      <div className="flex-1 lg:ml-64">
-        <Header title="Contas & Clientes" subtitle="Conecte e sincronize contas reais por cliente" />
-        <main className="p-4 sm:p-6 lg:p-8">
+    <AppShell title="Contas & Clientes" subtitle="Conecte e sincronize contas reais por cliente">
           {notice && (
             <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-start gap-2">
               <Check className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
@@ -314,10 +309,10 @@ function AccountsContent() {
           )}
 
           {/* Gestão de Clientes (Perfis) do Usuário */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 mb-6">
+          <div className="nexo-panel p-5 mb-6">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center">
                   <Building2 className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -418,7 +413,7 @@ function AccountsContent() {
           </div>
 
           {/* Conectar Meta (agência) */}
-          <div className="flex items-start gap-4 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800 mb-8">
+          <div className="flex items-start gap-4 p-5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-blue-200 dark:border-blue-800 mb-8">
             <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-xl">
               <Facebook className="w-6 h-6 text-blue-600" />
             </div>
@@ -442,7 +437,7 @@ function AccountsContent() {
 
           {/* Stats */}
           <div className="grid sm:grid-cols-3 gap-4 mb-8">
-            <div className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div className="p-5 nexo-panel">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
                   <Check className="w-6 h-6 text-emerald-600" />
@@ -453,7 +448,7 @@ function AccountsContent() {
                 </div>
               </div>
             </div>
-            <div className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div className="p-5 nexo-panel">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-brand-100 dark:bg-brand-900/30 rounded-xl">
                   <Users className="w-6 h-6 text-brand-600" />
@@ -464,7 +459,7 @@ function AccountsContent() {
                 </div>
               </div>
             </div>
-            <div className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div className="p-5 nexo-panel">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
                   <Settings2 className="w-6 h-6 text-amber-600" />
@@ -480,7 +475,7 @@ function AccountsContent() {
           </div>
 
           {/* Contas conectadas */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
+          <div className="nexo-panel p-6 mb-6">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -616,7 +611,7 @@ function AccountsContent() {
           </div>
 
           {/* Outras plataformas */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+          <div className="nexo-panel p-6">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Conectar plataformas diretas</h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {providers.map((provider) => {
@@ -802,9 +797,7 @@ function AccountsContent() {
               </div>
             </>
           )}
-        </main>
-      </div>
-    </div>
+        </AppShell>
   );
 }
 

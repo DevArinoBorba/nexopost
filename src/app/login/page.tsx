@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
-import BrandLogo from '@/components/BrandLogo';
+import AuthLayout from '@/components/AuthLayout';
 import { useAuth } from '@/components/AuthProvider';
 
 export default function LoginPage() {
@@ -50,17 +50,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-brand-950 to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center justify-center">
-            <BrandLogo layout="stacked" tone="light" size="lg" />
-          </Link>
-        </div>
-
-        {/* Login Form */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl p-8">
+    <AuthLayout>
+      <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Entrar</h1>
           <p className="text-slate-500 dark:text-slate-400 mb-6">
             Acesse sua conta NexoPost para gerenciar seus clientes e redes sociais
@@ -75,7 +66,7 @@ export default function LoginPage() {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   type="email"
-                  value={email}
+                  id="login-email" autoComplete="email" value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu@email.com"
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:outline-none"
@@ -85,14 +76,14 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              <label htmlFor="login-password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Senha
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  value={password}
+                  id="login-password" autoComplete="current-password" value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full pl-10 pr-11 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-brand-500 focus:outline-none"
@@ -110,7 +101,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+              <div role="alert" className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
                 <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
               </div>
             )}
@@ -118,7 +109,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white rounded-xl font-semibold transition-colors"
+              className="nexo-primary w-full py-3"
             >
               {loading ? (
                 <>
@@ -156,8 +147,7 @@ export default function LoginPage() {
               Preencher
             </button>
           </div>
-        </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

@@ -1,8 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap');
 
 :root {
   --foreground-rgb: 15, 23, 42;
@@ -165,3 +166,158 @@ a {
 .devto { color: #0a0a0a; }
 .nostr { color: #bf5af2; }
 .lemmy { color: #ffd700; }
+
+/* NEXOPOST: compact workspace, based on the approved light/dark reference. */
+:root {
+  --nexo-canvas: #f7f9fc;
+  --nexo-surface: #ffffff;
+  --nexo-field: #f8fafc;
+  --nexo-border: #e3e9f0;
+  --nexo-text: #0c1924;
+  --nexo-muted: #5b6d84;
+  --nexo-accent: #6046ff;
+  --nexo-active: #f0edff;
+  --nexo-action: #0b1721;
+  --nexo-action-text: #ffffff;
+  --foreground-rgb: 12, 25, 36;
+  --background-rgb: 247, 249, 252;
+  --accent-rgb: 96, 70, 255;
+  color-scheme: light;
+}
+.dark {
+  --nexo-canvas: #09141d;
+  --nexo-surface: #101d27;
+  --nexo-field: #0d1923;
+  --nexo-border: #1e2e3b;
+  --nexo-text: #f2f5fa;
+  --nexo-muted: #a0b0c2;
+  --nexo-accent: #a08fff;
+  --nexo-active: #1d2440;
+  --nexo-action: #f5f7fa;
+  --nexo-action-text: #0b1721;
+  --foreground-rgb: 242, 245, 250;
+  --background-rgb: 9, 20, 29;
+  --accent-rgb: 160, 143, 255;
+  color-scheme: dark;
+}
+.nexo-app, .nexo-auth { background: var(--nexo-canvas); color: var(--nexo-text); min-height: 100vh; font-size: 13px; }
+.nexo-app h1, .nexo-app h2, .nexo-app h3, .nexo-auth h1, .nexo-auth h2 { font-family: 'DM Sans', system-ui, sans-serif; letter-spacing: -.025em; }
+.nexo-sidebar { width: 216px; position: fixed; inset: 0 auto 0 0; z-index: 50; display: flex; flex-direction: column; background: var(--nexo-surface); border-right: 1px solid var(--nexo-border); transition: transform 180ms ease-out; }
+.nexo-sidebar-brand { height: 76px; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.nexo-sidebar-brand img { height: 38px; }
+.nexo-profile { padding: 0 12px 12px; }
+.nexo-profile > button { border: 1px solid var(--nexo-border); background: var(--nexo-field); padding: 9px; border-radius: 7px; }
+.nexo-nav { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 12px 20px; }
+.nexo-nav-link { display: flex; align-items: center; gap: 11px; min-height: 38px; padding: 9px 11px; margin-bottom: 3px; border-radius: 6px; color: var(--nexo-muted); font-size: 12px; font-weight: 500; transition: background 150ms, color 150ms; text-align: left; }
+.nexo-nav-link:hover { color: var(--nexo-text); background: var(--nexo-field); }
+.nexo-nav-link.is-active { color: var(--nexo-accent); background: var(--nexo-active); }
+.nexo-sidebar-user { border-top: 1px solid var(--nexo-border); padding: 15px 12px; }
+.nexo-user-link { display: flex; align-items: center; gap: 10px; padding: 0 10px 14px; }
+.nexo-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--nexo-action); color: var(--nexo-action-text); display: grid; place-items: center; font-weight: 600; flex-shrink: 0; }
+.nexo-workspace { margin-left: 216px; min-width: 0; }
+.nexo-header { position: sticky; top: 0; z-index: 30; height: 76px; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; gap: 18px; background: var(--nexo-surface); border-bottom: 1px solid var(--nexo-border); }
+.nexo-header-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.nexo-header h1 { font-size: 18px; font-weight: 700; line-height: 1.4; }
+.nexo-header p { color: var(--nexo-muted); font-size: 12px; margin-top: 2px; line-height: 1.5; }
+.nexo-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.nexo-icon-button { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; color: var(--nexo-muted); border-radius: 6px; flex-shrink: 0; }
+.nexo-icon-button:hover { background: var(--nexo-field); color: var(--nexo-text); }
+.nexo-primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; padding: 8px 14px; background: var(--nexo-action); color: var(--nexo-action-text); border-radius: 6px; font-size: 12px; font-weight: 600; transition: opacity 150ms; }
+.nexo-primary:hover { opacity: .85; }
+.nexo-main { padding: 24px 28px 40px; max-width: 1480px; margin: 0 auto; outline: none; }
+.nexo-main-focused { max-width: 1100px; }
+.nexo-panel { background: var(--nexo-surface); border: 1px solid var(--nexo-border); border-radius: 9px; }
+.nexo-main .rounded-2xl { border-radius: 10px; }
+.nexo-main .rounded-xl { border-radius: 8px; }
+.nexo-main .shadow-sm, .nexo-main .shadow-xs { box-shadow: none; }
+.nexo-main h2 { font-size: 15px; }
+.nexo-main h3 { font-size: 13px; }
+.nexo-main :is(input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']):not([type='color']), select, textarea), .nexo-auth :is(input, select, textarea) { background: var(--nexo-field); border-color: var(--nexo-border); color: var(--nexo-text); border-radius: 6px; font-size: 13px; }
+.nexo-main :is(input, textarea)::placeholder, .nexo-auth input::placeholder { color: var(--nexo-muted); opacity: 1; }
+.nexo-main :is(input, select, textarea):focus-visible, .nexo-auth input:focus-visible { border-color: var(--nexo-accent); outline: 2px solid var(--nexo-accent); outline-offset: 2px; }
+.nexo-app button:disabled, .nexo-auth button:disabled { cursor: not-allowed; opacity: .55; }
+.nexo-main table { font-variant-numeric: tabular-nums; }
+.nexo-main th { color: var(--nexo-muted); font-size: 11px; }
+.nexo-app .text-slate-500 { color: var(--nexo-muted); }
+.dark .nexo-app :is(.text-slate-400, .text-slate-600) { color: var(--nexo-muted); }
+.dark .nexo-app :is(.text-brand-600, .text-brand-700) { color: var(--nexo-accent); }
+.dark .nexo-app .text-emerald-600 { color: #48d5aa; }
+.dark .nexo-app .text-amber-600 { color: #f4bc64; }
+.dark .nexo-app .text-red-600 { color: #ff838b; }
+.dark .nexo-app .text-blue-600 { color: #80b4ff; }
+.nexo-notification-dot { position: absolute; top: 6px; right: 6px; width: 5px; height: 5px; border-radius: 50%; background: #ef4444; }
+.nexo-notifications { position: absolute; top: calc(100% + 12px); right: 0; width: min(340px, calc(100vw - 32px)); background: var(--nexo-surface); border: 1px solid var(--nexo-border); border-radius: 9px; box-shadow: 0 12px 32px #00000018; }
+.nexo-menu-overlay { position: fixed; inset: 0; background: #09141d99; z-index: 40; }
+.nexo-skip-link { position: fixed; top: 8px; left: 8px; z-index: 100; transform: translateY(-150%); background: var(--nexo-action); color: var(--nexo-action-text); padding: 10px 14px; border-radius: 6px; }
+.nexo-skip-link:focus { transform: translateY(0); }
+.nexo-auth-header { max-width: 1320px; margin: auto; padding: 24px 32px; display: flex; align-items: center; justify-content: space-between; }
+.nexo-auth-body { max-width: 1120px; margin: 0 auto; padding: 48px 32px 64px; display: grid; grid-template-columns: 1fr 420px; gap: 90px; align-items: center; }
+.nexo-auth-story h2 { font-size: clamp(36px, 4.4vw, 60px); line-height: 1.12; font-weight: 700; }
+.nexo-auth-story h2 span { color: var(--nexo-accent); }
+.nexo-auth-story > p { color: var(--nexo-muted); font-size: 16px; line-height: 1.8; margin-top: 28px; max-width: 36ch; }
+.nexo-auth-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--nexo-muted); margin-top: 42px; font-size: 12px; }
+.nexo-auth-flow svg { color: var(--nexo-accent); }
+.nexo-auth-form { padding: 32px; background: var(--nexo-surface); border: 1px solid var(--nexo-border); border-radius: 12px; }
+.nexo-back-link { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--nexo-border); color: var(--nexo-muted); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; }
+.nexo-metric-number { font-size: 25px; line-height: 1.2; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.nexo-dashboard-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+.nexo-dashboard-stat { padding: 18px; }
+.nexo-chart { height: 225px; margin-top: 18px; }
+.nexo-periods { display: inline-flex; border: 1px solid var(--nexo-border); border-radius: 6px; padding: 3px; gap: 2px; }
+.nexo-periods button { padding: 5px 11px; color: var(--nexo-muted); font-size: 11px; border-radius: 4px; }
+.nexo-periods button[aria-pressed='true'] { background: var(--nexo-active); color: var(--nexo-accent); }
+.nexo-calendar-grid { gap: 0; border: 1px solid var(--nexo-border); border-radius: 6px; overflow: hidden; }
+.nexo-calendar-grid > button { min-height: 92px; aspect-ratio: auto; align-items: flex-start; justify-content: flex-start; border-radius: 0; border-right: 1px solid var(--nexo-border); border-bottom: 1px solid var(--nexo-border); padding: 10px; }
+.nexo-calendar-grid > button:nth-child(7n) { border-right: 0; }
+.nexo-calendar-grid > button:disabled { opacity: 1; background: var(--nexo-field); }
+.nexo-upload-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--nexo-border); margin-bottom: 22px; }
+.nexo-upload-tabs button { min-height: 48px; padding: 10px; font-size: 12px; color: var(--nexo-muted); border-bottom: 2px solid transparent; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.nexo-upload-tabs button[aria-pressed='true'] { color: var(--nexo-accent); border-bottom-color: var(--nexo-accent); background: var(--nexo-active); }
+@media (max-width: 1023px) {
+  .nexo-sidebar { transform: translateX(-100%); width: 244px; }
+  .nexo-sidebar.is-open { transform: translateX(0); }
+  .nexo-workspace { margin-left: 0; }
+  .nexo-header { padding: 0 18px; }
+  .nexo-main { padding: 20px 18px 32px; }
+  .nexo-nav-link { min-height: 44px; }
+  .nexo-auth-body { gap: 36px; grid-template-columns: 1fr 400px; }
+}
+@media (max-width: 640px) {
+  .nexo-header { min-height: 76px; height: auto; padding: 12px; gap: 8px; }
+  .nexo-header h1 { font-size: 16px; }
+  .nexo-header p { font-size: 11px; max-width: 34ch; }
+  .nexo-header-actions { gap: 0; }
+  .nexo-header-actions .nexo-primary { width: 36px; padding: 8px; }
+  .nexo-header-actions .nexo-primary span { display: none; }
+  .nexo-icon-button { width: 40px; height: 40px; }
+  .nexo-main { padding: 16px 12px 28px; }
+  .nexo-main .p-6 { padding: 16px; }
+  .nexo-main .gap-6 { gap: 16px; }
+  .nexo-dashboard-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .nexo-dashboard-stat { padding: 14px; }
+  .nexo-auth-header { padding: 16px 20px; }
+  .nexo-auth-body { display: block; padding: 20px 16px 40px; }
+  .nexo-auth-story { display: none; }
+  .nexo-auth-form { padding: 24px; max-width: 440px; margin: auto; }
+  .nexo-calendar-grid > button { padding: 6px; min-height: 65px; font-size: 12px; }
+  .nexo-upload-tabs button { font-size: 11px; gap: 5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .hero-grid, .whatsapp-pulse, .animate-slide-up, .animate-slide-down, .animate-scale-in { animation: none; }
+  .nexo-sidebar { transition: none; }
+}
+
+.nexo-composer > .nexo-panel { padding: 20px; }
+.nexo-content-kind button { padding: 12px; border-width: 1px; }
+.nexo-content-kind svg { width: 20px; height: 20px; }
+.nexo-media-zone input[type='file']:focus-visible { outline: 2px solid var(--nexo-accent); outline-offset: -4px; }
+@media (min-width: 1200px) {
+ .nexo-composer { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px; align-items: start; }
+ .nexo-composer > .nexo-panel { margin-bottom: 0; }
+ .nexo-content-kind { grid-column: 1; grid-row: 1; }
+ .nexo-media-zone { grid-column: 1; grid-row: 2 / span 2; }
+ .nexo-post-details { grid-column: 2; grid-row: 1 / span 2; }
+ .nexo-post-scheduling { grid-column: 2; grid-row: 3; }
+ .nexo-post-result, .nexo-post-submit { grid-column: 1 / -1; }
+}

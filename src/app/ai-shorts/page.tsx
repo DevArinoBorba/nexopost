@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import AppShell from '@/components/AppShell';
 import PlatformIcon from '@/components/PlatformIcon';
 import { backend } from '@/lib/client';
 import {
@@ -173,17 +172,10 @@ export default function AIShortsPage() {
   const fmtSize = (n: number) => (n / 1024 / 1024).toFixed(2) + ' MB';
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      <Sidebar />
-      <div className="flex-1 lg:ml-64">
-        <Header
-          title="Estúdio IA & Vídeo"
-          subtitle="Cortes automáticos com FFmpeg e geração inteligente de títulos e copys com Gemini AI"
-        />
-
-        <main className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
+    <AppShell title="Estúdio IA & Vídeo"
+          subtitle="Cortes automáticos com FFmpeg e geração inteligente de títulos e copys com Gemini AI" className="nexo-main-focused space-y-6">
           {/* Banner de destaque Gemini */}
-          <div className="flex items-start gap-4 p-5 bg-gradient-to-r from-brand-500/10 via-purple-500/10 to-transparent rounded-2xl border border-brand-500/20 shadow-xs">
+          <div className="flex items-start gap-4 p-5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-brand-500/20 shadow-xs">
             <div className="p-3 bg-brand-500/20 rounded-xl text-brand-600 dark:text-brand-400">
               <Sparkles className="w-6 h-6" />
             </div>
@@ -212,7 +204,7 @@ export default function AIShortsPage() {
             {/* COLUNA ESQUERDA: Upload e Presets FFmpeg */}
             <div className="lg:col-span-7 space-y-6">
               {/* 1. Upload */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+              <div className="nexo-panel p-6 shadow-sm">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">1. Arquivo de Mídia</h3>
                 <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-8 text-center hover:border-brand-500 transition-colors bg-slate-50/50 dark:bg-slate-950/50">
                   <input
@@ -242,7 +234,7 @@ export default function AIShortsPage() {
               </div>
 
               {/* 2. Presets de Corte FFmpeg */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+              <div className="nexo-panel p-6 shadow-sm">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">2. Preset de Vídeo (FFmpeg)</h3>
                 <div className="grid sm:grid-cols-2 gap-3">
                   {presets.map((p) => {
@@ -293,7 +285,7 @@ export default function AIShortsPage() {
 
               {/* Resultado do Vídeo */}
               {result && (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+                <div className="nexo-panel p-6 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 rounded-full">
                       <Check className="w-3.5 h-3.5" /> Vídeo Renderizado com Sucesso
@@ -370,7 +362,7 @@ export default function AIShortsPage() {
                   type="button"
                   onClick={handleGenerateAI}
                   disabled={generatingAI || !aiTopic.trim()}
-                  className="w-full py-2.5 bg-gradient-to-r from-brand-600 to-purple-600 hover:from-brand-700 hover:to-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-2.5 bg-brand-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {generatingAI ? (
                     <>
@@ -399,7 +391,7 @@ export default function AIShortsPage() {
                           key={i}
                           type="button"
                           onClick={() => setPostTitle(t)}
-                          className="w-full text-left text-xs p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-brand-500 transition-colors text-slate-800 dark:text-slate-200 font-medium"
+                          className="w-full text-left text-xs p-2 rounded-lg nexo-panel hover:border-brand-500 transition-colors text-slate-800 dark:text-slate-200 font-medium"
                         >
                           • {t}
                         </button>
@@ -410,7 +402,7 @@ export default function AIShortsPage() {
               </div>
 
               {/* Caixa de Publicação Pronta */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+              <div className="nexo-panel p-6 shadow-sm space-y-4">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <Send className="w-4 h-4 text-brand-600" />
                   Publicar Direto nas Redes
@@ -497,8 +489,6 @@ export default function AIShortsPage() {
               </div>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+        </AppShell>
   );
 }

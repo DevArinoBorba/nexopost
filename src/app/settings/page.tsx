@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import AppShell from '@/components/AppShell';
+import { useTheme } from '@/components/ThemeProvider';
 import { useAuth } from '@/components/AuthProvider';
 import { backend, type UserAccountView, type SessionView, type BrandProfileView } from '@/lib/client';
 import {
@@ -41,7 +41,7 @@ export default function SettingsPage() {
   const { refresh: refreshAuth } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [loading, setLoading] = useState(true);
-  const [isDark, setIsDark] = useState(false);
+  const { theme, setTheme: applyTheme } = useTheme();
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
@@ -166,7 +166,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains('dark'));
+
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab') as Tab | null;
@@ -386,28 +386,14 @@ export default function SettingsPage() {
   ];
 
   const setTheme = (mode: 'light' | 'dark' | 'system') => {
-    const root = document.documentElement;
-    if (mode === 'system') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.classList.toggle('dark', prefersDark);
-      localStorage.setItem('theme', 'system');
-      setIsDark(prefersDark);
-    } else {
-      root.classList.toggle('dark', mode === 'dark');
-      localStorage.setItem('theme', mode);
-      setIsDark(mode === 'dark');
-    }
+    applyTheme(mode);
     showSuccess('Tema de aparência salvo!');
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Sidebar />
-      <div className="flex-1 lg:ml-64">
-        <Header title="Configurações" subtitle="Gerencie sua conta, usuários reais, segurança e servidor" />
-        <main className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+    <AppShell title="Configurações" subtitle="Gerencie sua conta, usuários reais, segurança e servidor" className="nexo-main-focused">
           {/* Navegação por abas */}
-          <div className="flex items-center gap-2 p-1.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 mb-6 overflow-x-auto">
+          <div className="flex items-center gap-2 p-1.5 nexo-panel mb-6 overflow-x-auto">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -444,10 +430,10 @@ export default function SettingsPage() {
           {/* ABA 1: MINHA CONTA & SEGURANÇA */}
           {activeTab === 'profile' && (
             <div className="space-y-6">
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+              <div className="nexo-panel p-6">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-600 to-indigo-700 text-white flex items-center justify-center text-xl font-bold">
+                    <div className="w-14 h-14 rounded-2xl bg-brand-600 text-white flex items-center justify-center text-xl font-bold">
                       {name?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
                     <div>
@@ -585,7 +571,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Alterar senha */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+              <div className="nexo-panel p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600">
                     <Lock className="w-5 h-5" />
@@ -652,7 +638,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Sessões ativas */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+              <div className="nexo-panel p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600">
@@ -724,7 +710,7 @@ export default function SettingsPage() {
           {/* ABA 2: CONTAS DE USUÁRIOS (MULTI-USUÁRIOS REAIS) */}
           {activeTab === 'users' && (
             <div className="space-y-6">
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
+              <div className="nexo-panel p-6">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -1053,10 +1039,10 @@ export default function SettingsPage() {
           {/* ABA: CÉREBRO DA MARCA (BRAND CONTEXT) */}
           {activeTab === 'brand' && (
             <div className="space-y-6">
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+              <div className="nexo-panel p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
                   <div className="flex items-start gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-600 via-indigo-600 to-brand-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                    <div className="w-11 h-11 rounded-2xl bg-brand-600 text-white flex items-center justify-center shadow-sm shrink-0">
                       <Brain className="w-6 h-6" />
                     </div>
                     <div>
@@ -1197,7 +1183,7 @@ export default function SettingsPage() {
                               key={presetTone}
                               type="button"
                               onClick={() => setBrandForm((prev) => ({ ...prev, tone: presetTone }))}
-                              className="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-slate-600 dark:text-slate-300 transition-colors"
+                              className="text-[11px] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
                             >
                               + {presetTone}
                             </button>
@@ -1260,7 +1246,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Simulador Rápido: Testar o Cérebro da Marca com Gemini IA */}
-              <div className="bg-gradient-to-br from-violet-50/70 via-indigo-50/40 to-purple-50/50 dark:from-violet-950/20 dark:via-indigo-950/20 dark:to-purple-950/20 rounded-xl border border-violet-200 dark:border-violet-900/60 p-6">
+              <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-violet-200 dark:border-violet-900/60 p-6">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="w-8 h-8 rounded-lg bg-violet-600 text-white flex items-center justify-center">
                     <Wand2 className="w-4 h-4" />
@@ -1304,7 +1290,7 @@ export default function SettingsPage() {
                 </div>
 
                 {testBrandResult && (
-                  <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2.5">
+                  <div className="mt-4 p-4 nexo-panel space-y-2.5">
                     <div>
                       <span className="text-[11px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">
                         Título Gerado
@@ -1331,7 +1317,7 @@ export default function SettingsPage() {
 
           {/* ABA 3: API */}
           {activeTab === 'api' && (
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+            <div className="nexo-panel p-6">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">API interna</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
                 Endpoints do seu próprio servidor. Use-os para integrar outras ferramentas.
@@ -1368,33 +1354,33 @@ export default function SettingsPage() {
 
           {/* ABA 4: APARÊNCIA */}
           {activeTab === 'appearance' && (
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+            <div className="nexo-panel p-6">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Aparência</h2>
               <h4 className="font-medium text-slate-900 dark:text-white mb-3">Tema</h4>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <button
-                  onClick={() => setTheme('light')}
+                  aria-pressed={theme === 'light'} onClick={() => setTheme('light')}
                   className={`p-4 rounded-xl border-2 transition-all ${
-                    !isDark ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-200 dark:border-slate-700'
+                    theme === 'light' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-200 dark:border-slate-700'
                   }`}
                 >
                   <div className="w-full h-16 bg-white border border-slate-200 rounded-lg mb-2" />
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Claro</span>
                 </button>
                 <button
-                  onClick={() => setTheme('dark')}
+                  aria-pressed={theme === 'dark'} onClick={() => setTheme('dark')}
                   className={`p-4 rounded-xl border-2 transition-all ${
-                    isDark ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-200 dark:border-slate-700'
+                    theme === 'dark' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-200 dark:border-slate-700'
                   }`}
                 >
                   <div className="w-full h-16 bg-slate-900 border border-slate-700 rounded-lg mb-2" />
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Escuro</span>
                 </button>
                 <button
-                  onClick={() => setTheme('system')}
-                  className="p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-slate-300 transition-all"
+                  aria-pressed={theme === 'system'} onClick={() => setTheme('system')}
+                  className={`p-4 rounded-xl border-2 transition-all ${theme === 'system' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-slate-200 dark:border-slate-700'}`}
                 >
-                  <div className="w-full h-16 bg-gradient-to-r from-white to-slate-900 border border-slate-200 rounded-lg mb-2" />
+                  <div className="w-full h-16 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 rounded-lg mb-2" />
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Sistema</span>
                 </button>
               </div>
@@ -1403,7 +1389,7 @@ export default function SettingsPage() {
 
           {/* ABA 5: SERVIDOR */}
           {activeTab === 'server' && (
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+            <div className="nexo-panel p-6">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Servidor</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
                 Este app roda inteiramente no seu servidor. Nenhum dado vai para terceiros.
@@ -1434,8 +1420,6 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
-        </main>
-      </div>
-    </div>
+        </AppShell>
   );
 }

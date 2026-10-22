@@ -90,6 +90,7 @@ export default function BrandLogo({
           />
         </>
       )}
+      {layout === 'horizontal' && <span className={`ml-2 font-sans font-bold tracking-tight ${size === 'sm' ? 'text-sm' : 'text-lg'} ${tone === 'light' ? 'text-white' : tone === 'dark' ? 'text-slate-900' : 'text-slate-900 dark:text-white'}`}>NEXOPOST</span>}
     </div>
   );
 }

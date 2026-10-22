@@ -1,119 +1,58 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Bell, Moon, Sun, Plus } from 'lucide-react';
+import { Bell, Plus, Menu, X } from 'lucide-react';
 import { backend } from '@/lib/client';
-import BrandLogo from './BrandLogo';
+import { ThemeToggle } from './ThemeProvider';
 
-interface HeaderProps {
-  title?: string;
-  subtitle?: string;
-}
+interface HeaderProps { title?: string; subtitle?: string; menuOpen?: boolean; onMenuToggle?: () => void; }
+interface Notification { id: string; message: string; }
 
-interface Notification {
-  id: string;
-  message: string;
-}
-
-export default function Header({ title, subtitle }: HeaderProps) {
-  const [isDark, setIsDark] = useState(false);
+export default function Header({ title, subtitle, menuOpen, onMenuToggle }: HeaderProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-
+  const notificationButton = useRef<HTMLButtonElement>(null);
+  const notificationPanel = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    setIsDark(document.documentElement.classList.contains('dark'));
-    // Notificações derivadas dos posts recentes (falhas / publicados)
-    backend
-      .getPosts(10)
-      .then((d) => {
-        const list: Notification[] = [];
-        for (const p of d.posts || []) {
-          for (const t of p.targets) {
-            if (t.status === 'failed') {
-              list.push({ id: `${p.id}-${t.platform}`, message: `Falha ao publicar "${p.title || 'post'}" no ${t.platform}` });
-            } else if (t.status === 'published') {
-              list.push({ id: `${p.id}-${t.platform}`, message: `Publicado "${p.title || 'post'}" no ${t.platform}` });
-            }
-          }
-        }
-        setNotifications(list.slice(0, 8));
-      })
-      .catch(() => {});
+    backend.getPosts(10).then((data) => {
+      const list: Notification[] = [];
+      for (const post of data.posts || []) for (const target of post.targets || []) {
+        if (target.status === 'failed' || target.status === 'published') list.push({
+          id: `${post.id}-${target.platform}`,
+          message: `${target.status === 'failed' ? 'Falha ao publicar' : 'Publicado'} "${post.title || 'post'}" no ${target.platform}`,
+        });
+      }
+      setNotifications(list.slice(0, 8));
+    }).catch(() => {});
   }, []);
-
-  const toggleTheme = () => {
-    const next = !isDark;
-    setIsDark(next);
-    document.documentElement.classList.toggle('dark', next);
-    localStorage.setItem('theme', next ? 'dark' : 'light');
-  };
-
-  return (
-    <header className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-      <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-4">
-          {title ? (
-            <div>
-              <h1 className="text-xl font-semibold text-slate-900 dark:text-white">{title}</h1>
-              {subtitle && <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
-            </div>
-          ) : (
-            <BrandLogo layout="horizontal" size="sm" />
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/upload"
-            className="hidden sm:flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Publicar
-          </Link>
-
-          <button
-            onClick={toggleTheme}
-            className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
-
-          <div className="relative">
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <Bell className="w-5 h-5" />
-              {notifications.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-              )}
-            </button>
-
-            {showNotifications && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-50">
-                  <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-                    <h3 className="font-semibold text-slate-900 dark:text-white">Notificações</h3>
-                  </div>
-                  <div className="max-h-80 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <p className="p-4 text-sm text-slate-500">Sem notificações.</p>
-                    ) : (
-                      notifications.map((n) => (
-                        <div key={n.id} className="p-4 border-b border-slate-100 dark:border-slate-700 last:border-0">
-                          <p className="text-sm text-slate-900 dark:text-white">{n.message}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+  useEffect(() => {
+    if (!showNotifications) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setShowNotifications(false); notificationButton.current?.focus(); }
+    };
+    const outside = (event: PointerEvent) => {
+      if (!notificationPanel.current?.contains(event.target as Node) && !notificationButton.current?.contains(event.target as Node)) setShowNotifications(false);
+    };
+    window.addEventListener('keydown', close);
+    window.addEventListener('pointerdown', outside);
+    return () => { window.removeEventListener('keydown', close); window.removeEventListener('pointerdown', outside); };
+  }, [showNotifications]);
+  return <header className="nexo-header">
+    <div className="nexo-header-heading">
+      <button type="button" className="nexo-icon-button lg:hidden" onClick={onMenuToggle} aria-label="Abrir menu" aria-expanded={menuOpen} aria-controls="app-navigation"><Menu size={20} /></button>
+      <div><h1>{title || 'NEXOPOST'}</h1>{subtitle && <p>{subtitle}</p>}</div>
+    </div>
+    <div className="nexo-header-actions">
+      <Link href="/upload" className="nexo-primary"><Plus size={15} /><span>Publicar</span></Link>
+      <ThemeToggle />
+      <div className="relative">
+        <button type="button" ref={notificationButton} onClick={() => setShowNotifications(!showNotifications)} className="nexo-icon-button relative" aria-label={`Notificações${notifications.length ? ` (${notifications.length})` : ''}`} aria-expanded={showNotifications} aria-controls="notifications-panel"><Bell size={18} />{notifications.length > 0 && <span className="nexo-notification-dot" />}</button>
+        {showNotifications && <div ref={notificationPanel} id="notifications-panel" className="nexo-notifications" role="region" aria-label="Notificações">
+          <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800"><h2 className="text-sm font-semibold">Notificações</h2><button className="nexo-icon-button" aria-label="Fechar notificações" onClick={() => setShowNotifications(false)}><X size={16} /></button></div>
+          <div className="max-h-80 overflow-y-auto">{notifications.length === 0 ? <p className="p-5 text-sm text-slate-500">Sem notificações.</p> : notifications.map((item) => <p key={item.id} className="p-4 text-sm border-b border-slate-100 dark:border-slate-800 last:border-0">{item.message}</p>)}</div>
+        </div>}
       </div>
-    </header>
-  );
+    </div>
+  </header>;
 }

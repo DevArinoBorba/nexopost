@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import AppShell from '@/components/AppShell';
 import PlatformIcon from '@/components/PlatformIcon';
 import { backend, type PostView } from '@/lib/client';
 import { TrendingUp, CheckCircle, Clock, XCircle, Download, Loader2 } from 'lucide-react';
@@ -24,6 +23,7 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9'
 export default function AnalyticsPage() {
   const [posts, setPosts] = useState<PostView[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -31,6 +31,8 @@ export default function AnalyticsPage() {
       try {
         const data = await backend.getPosts(500);
         setPosts(data.posts || []);
+      } catch {
+        setError('Não foi possível carregar as métricas. Recarregue a página para tentar novamente.');
       } finally {
         setLoading(false);
       }
@@ -90,12 +92,9 @@ export default function AnalyticsPage() {
   const successRate = posts.length ? Math.round((published / posts.length) * 100) : 0;
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Sidebar />
-      <div className="flex-1 lg:ml-64">
-        <Header title="Métricas" subtitle="Desempenho de publicações do seu servidor" />
-        <main className="p-4 sm:p-6 lg:p-8">
-          <div className="flex items-center justify-between mb-6">
+    <AppShell title="Métricas" subtitle="Desempenho de publicações do seu servidor">
+          {error && <p role="alert" className="mb-4 p-3 text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900 rounded-lg">{error}</p>}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
             <p className="text-sm text-slate-500">
               Estatísticas de publicação próprias. Métricas externas (views, likes) exigem as APIs de analytics de cada
               rede — próximos passos.
@@ -117,7 +116,7 @@ export default function AnalyticsPage() {
                 a.click();
                 URL.revokeObjectURL(url);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              className="shrink-0 flex items-center gap-2 px-4 py-2 nexo-panel rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <Download className="w-4 h-4" />
               Exportar
@@ -126,7 +125,7 @@ export default function AnalyticsPage() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {stats.map((stat) => (
-              <div key={stat.label} className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div key={stat.label} className="p-5 nexo-panel">
                 <div className="p-2 bg-brand-50 dark:bg-brand-900/30 rounded-lg w-fit mb-3">
                   <stat.icon className="w-5 h-5 text-brand-600" />
                 </div>
@@ -137,17 +136,17 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6 mb-8">
-            <div className="p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div className="p-6 nexo-panel">
               <h3 className="font-semibold text-slate-900 dark:text-white mb-6">Posts por plataforma</h3>
               <div className="h-64">
                 {perPlatform.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={perPlatform}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="platform" stroke="#94a3b8" fontSize={12} />
-                      <YAxis stroke="#94a3b8" fontSize={12} allowDecimals={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }} />
-                      <Bar dataKey="publicados" fill="#6366f1" radius={[4, 4, 0, 0]} name="Publicados" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--nexo-border)" />
+                      <XAxis dataKey="platform" stroke="var(--nexo-muted)" fontSize={12} />
+                      <YAxis stroke="var(--nexo-muted)" fontSize={12} allowDecimals={false} />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--nexo-surface)', border: '1px solid var(--nexo-border)', borderRadius: '8px', color: 'var(--nexo-text)' }} />
+                      <Bar dataKey="publicados" fill="var(--nexo-accent)" radius={[4, 4, 0, 0]} name="Publicados" />
                       <Bar dataKey="falhas" fill="#ef4444" radius={[4, 4, 0, 0]} name="Falhas" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -159,7 +158,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            <div className="p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div className="p-6 nexo-panel">
               <h3 className="font-semibold text-slate-900 dark:text-white mb-6">Distribuição por status</h3>
               <div className="h-64">
                 {statusData.length > 0 ? (
@@ -170,7 +169,7 @@ export default function AnalyticsPage() {
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }} />
+                      <Tooltip contentStyle={{ backgroundColor: 'var(--nexo-surface)', border: '1px solid var(--nexo-border)', borderRadius: '8px', color: 'var(--nexo-text)' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
@@ -192,7 +191,7 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+          <div className="p-6 nexo-panel">
             <h3 className="font-semibold text-slate-900 dark:text-white mb-4">Posts publicados por dia (30 dias)</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -226,8 +225,6 @@ export default function AnalyticsPage() {
               </table>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+        </AppShell>
   );
 }

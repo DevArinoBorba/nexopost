@@ -223,11 +223,7 @@ function init(): Database.Database {
 
 // Singleton (sobrevive ao hot-reload do Next em dev)
 const g = globalThis as unknown as { __appDb?: Database.Database };
-export const db: Database.Database = g.__appDb ?? init();
-if (g.__appDb) {
-  runMigrations(g.__appDb);
-}
-if (process.env.NODE_ENV !== 'production') g.__appDb = db;
+export const db: Database.Database = g.__appDb ?? (g.__appDb = init());
 
 export const now = () => new Date().toISOString();
 

@@ -1,0 +1,364 @@
+{
+  "date": "2026-10-16",
+  "views": [
+    {
+      "file": "accounts-dark-1440.png",
+      "route": "accounts",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "accounts-dark-390.png",
+      "route": "accounts",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "accounts-light-1440.png",
+      "route": "accounts",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "accounts-light-390.png",
+      "route": "accounts",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "ai-shorts-dark-1440.png",
+      "route": "ai-shorts",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "ai-shorts-dark-390.png",
+      "route": "ai-shorts",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "ai-shorts-light-1440.png",
+      "route": "ai-shorts",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "ai-shorts-light-390.png",
+      "route": "ai-shorts",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "analytics-dark-1440.png",
+      "route": "analytics",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "analytics-dark-390.png",
+      "route": "analytics",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "analytics-light-1440.png",
+      "route": "analytics",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "analytics-light-390.png",
+      "route": "analytics",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "audience-dark-1440.png",
+      "route": "audience",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "audience-dark-390.png",
+      "route": "audience",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "audience-light-1440.png",
+      "route": "audience",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "audience-light-390.png",
+      "route": "audience",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "autodm-dark-1440.png",
+      "route": "autodm",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "autodm-dark-390.png",
+      "route": "autodm",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "autodm-light-1440.png",
+      "route": "autodm",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "autodm-light-390.png",
+      "route": "autodm",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "dashboard-dark-1440.png",
+      "route": "dashboard",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "dashboard-dark-390.png",
+      "route": "dashboard",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "dashboard-light-1440.png",
+      "route": "dashboard",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "dashboard-light-390.png",
+      "route": "dashboard",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "login-dark-1440.png",
+      "route": "login",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "login-dark-390.png",
+      "route": "login",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "login-light-1440.png",
+      "route": "login",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "login-light-390.png",
+      "route": "login",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "queue-dark-1440.png",
+      "route": "queue",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "queue-dark-390.png",
+      "route": "queue",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "queue-light-1440.png",
+      "route": "queue",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "queue-light-390.png",
+      "route": "queue",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "register-dark-1440.png",
+      "route": "register",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "register-dark-390.png",
+      "route": "register",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "register-light-1440.png",
+      "route": "register",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "register-light-390.png",
+      "route": "register",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "schedule-dark-1440.png",
+      "route": "schedule",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "schedule-dark-390.png",
+      "route": "schedule",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "schedule-light-1440.png",
+      "route": "schedule",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "schedule-light-390.png",
+      "route": "schedule",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "settings-dark-1440.png",
+      "route": "settings",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "settings-dark-390.png",
+      "route": "settings",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "settings-light-1440.png",
+      "route": "settings",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "settings-light-390.png",
+      "route": "settings",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "upload-dark-1440.png",
+      "route": "upload",
+      "theme": "dark",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "upload-dark-390.png",
+      "route": "upload",
+      "theme": "dark",
+      "width": "390",
+      "status": "passed"
+    },
+    {
+      "file": "upload-light-1440.png",
+      "route": "upload",
+      "theme": "light",
+      "width": "1440",
+      "status": "passed"
+    },
+    {
+      "file": "upload-light-390.png",
+      "route": "upload",
+      "theme": "light",
+      "width": "390",
+      "status": "passed"
+    }
+  ],
+  "interactionChecks": [
+    "mobile menu",
+    "theme persistence",
+    "system preference",
+    "upload modes",
+    "queue slot creation (unsaved)",
+    "invalid login"
+  ],
+  "errors": [],
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "businessHandlerComparison": "unchanged",
+  "externalIntegrations": "not exercised",
+  "data": "isolated temporary SQLite database",
+  "reviewFix": {
+    "surface": "analytics",
+    "viewport": 390,
+    "status": "resolved",
+    "themes": [
+      "light",
+      "dark"
+    ]
+  }
+}

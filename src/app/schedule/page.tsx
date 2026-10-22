@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import AppShell from '@/components/AppShell';
 import PlatformIcon from '@/components/PlatformIcon';
 import { backend, type ScheduledPostView } from '@/lib/client';
 import {
@@ -20,6 +19,7 @@ import {
   Pencil,
   Layers,
   RefreshCw,
+  Plus,
 } from 'lucide-react';
 
 const typeIcon: Record<string, typeof FileText> = {
@@ -37,13 +37,22 @@ export default function SchedulePage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [editing, setEditing] = useState<ScheduledPostView | null>(null);
   const [editDate, setEditDate] = useState('');
+  const [publishedCount, setPublishedCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await backend.getSchedule();
-      setPosts(data.scheduled_posts || []);
+      const [schedRes, postsRes] = await Promise.allSettled([backend.getSchedule(), backend.getPosts()]);
+      if (schedRes.status === 'fulfilled') {
+        setPosts(schedRes.value.scheduled_posts || []);
+      }
+      if (postsRes.status === 'fulfilled') {
+        const list = postsRes.value.posts || [];
+        setPublishedCount(list.filter((p) => p.status === 'published').length);
+        setFailedCount(list.filter((p) => p.status === 'failed').length);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -110,113 +119,192 @@ export default function SchedulePage() {
 
   const visiblePosts = selectedDate ? postsOnDate(selectedDate) : posts;
 
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'list'>('month');
+
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Sidebar />
-      <div className="flex-1 lg:ml-64">
-        <Header title="Schedule" subtitle="Calendário e fila de posts agendados" />
-        <main className="p-4 sm:p-6 lg:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              Total na fila de agendamento: <b className="text-slate-900 dark:text-white">{posts.length}</b> post(s)
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={load}
-                disabled={loading}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                Atualizar
-              </button>
-              <Link
-                href="/upload"
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white shadow-sm transition-all"
-              >
-                <Layers className="w-3.5 h-3.5" />
-                Novo Upload / Fila em Massa
-              </Link>
-            </div>
+    <AppShell title="Agendamentos" subtitle="Calendário e fila de posts agendados">
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-2">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
+
+      {/* Calendar Controls Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setCurrentMonth(new Date());
+              setSelectedDate(null);
+            }}
+            className="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-[#111923] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-xs"
+          >
+            Hoje
+          </button>
+          <div className="flex items-center gap-1">
+            <button
+              aria-label="Mês anterior"
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
+              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-colors"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              aria-label="Próximo mês"
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
+              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-colors"
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white capitalize">
+            {monthYear}
+          </h2>
+        </div>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        {/* View Switcher: Mês / Semana / Lista */}
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-lg">
+          {(['month', 'week', 'list'] as const).map((mode) => {
+            const labels = { month: 'Mês', week: 'Semana', list: 'Lista' };
+            const isActive = viewMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                  isActive
+                    ? 'bg-[#0b1721] text-white dark:bg-white dark:text-[#0b1721] shadow-xs'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {labels[mode]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-12 gap-6 items-start">
+        {/* Main Calendar View (Col-span 8) */}
+        <div className="lg:col-span-8 nexo-panel p-5 sm:p-6">
+          {viewMode === 'list' ? (
+            /* List Mode View */
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {posts.length === 0 ? (
+                <p className="py-12 text-center text-xs text-slate-400">Nenhum post agendado na fila.</p>
+              ) : (
+                posts.map((post) => (
+                  <div key={post.job_id} className="py-3.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <FileVideo size={16} className="text-slate-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                          {post.title || 'Sem título'}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          {new Date(post.scheduled_date).toLocaleString('pt-BR')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEdit(post)}
+                        className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                        title="Reagendar"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => cancelPost(post.job_id)}
+                        className="p-1.5 text-slate-400 hover:text-red-500"
+                        title="Cancelar"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          )}
-
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* Calendar */}
-            <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-white capitalize">{monthYear}</h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                  >
-                    <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                  </button>
-                  <button
-                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                  >
-                    <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCurrentMonth(new Date());
-                      setSelectedDate(null);
-                    }}
-                    className="px-3 py-1.5 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 rounded-lg transition-colors"
-                  >
-                    Hoje
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1 mb-2">
+          ) : (
+            /* Month / Week Grid View */
+            <>
+              <div className="grid grid-cols-7 mb-2">
                 {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
-                  <div key={d} className="text-center text-xs font-medium text-slate-500 py-2">
+                  <div key={d} className="text-center text-xs font-semibold text-slate-400 py-1">
                     {d}
                   </div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-200/50 dark:bg-slate-800/60 gap-[1px]">
                 {days.map((date, idx) => {
                   const dayPosts = date ? postsOnDate(date) : [];
                   const count = dayPosts.length;
+                  const isCurrentDay = date && isToday(date);
+                  const isSelected = date && selectedDate && selectedDate.toDateString() === date.toDateString();
+
+                  // Extrai plataformas únicas dos posts do dia
+                  const dayPlatforms = Array.from(
+                    new Set(dayPosts.flatMap((p) => p.platforms || []))
+                  );
+
                   return (
                     <button
                       key={idx}
-                      onClick={() => date && setSelectedDate(date)}
+                      type="button"
                       disabled={!date}
-                      className={`aspect-square p-1 rounded-lg flex flex-col items-center justify-center text-sm transition-colors ${
+                      onClick={() => date && setSelectedDate(isSelected ? null : date)}
+                      className={`min-h-[82px] p-2 flex flex-col justify-between text-left transition-colors bg-white dark:bg-[#111923] ${
                         !date
-                          ? ''
-                          : isToday(date)
-                          ? 'bg-brand-50 dark:bg-brand-900/30 ring-2 ring-brand-500'
-                          : count > 0
-                          ? 'bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
-                          : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                      } ${selectedDate?.toDateString() === date?.toDateString() ? 'ring-2 ring-brand-500' : ''}`}
+                          ? 'bg-slate-50/50 dark:bg-[#0c141d]/50'
+                          : isSelected
+                          ? 'ring-2 ring-inset ring-[#6046ff] bg-[#f0edff]/30 dark:bg-[#1d2440]/40'
+                          : 'hover:bg-slate-50 dark:hover:bg-[#14202d]'
+                      }`}
                     >
                       {date && (
                         <>
-                          <span
-                            className={`font-medium ${
-                              isToday(date) ? 'text-brand-600' : 'text-slate-700 dark:text-slate-300'
-                            }`}
-                          >
-                            {date.getDate()}
-                          </span>
-                          {count > 0 && (
-                            <span className="mt-0.5 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-emerald-500 text-white leading-tight">
-                              {count}
+                          <div className="flex items-center justify-between w-full">
+                            <span
+                              className={`text-xs font-semibold ${
+                                isCurrentDay
+                                  ? 'w-5 h-5 rounded-full bg-[#6046ff] text-white flex items-center justify-center text-[10px]'
+                                  : 'text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              {date.getDate()}
                             </span>
+                          </div>
+
+                          {count > 0 && (
+                            <div className="mt-1">
+                              <span className="block text-[10px] font-bold text-[#6046ff] dark:text-[#a08fff]">
+                                {count} {count === 1 ? 'post' : 'posts'}
+                              </span>
+                              <div className="flex items-center gap-1 mt-1">
+                                {dayPlatforms.slice(0, 4).map((plat) => {
+                                  const dotColors: Record<string, string> = {
+                                    instagram: 'bg-[#e4405f]',
+                                    youtube: 'bg-[#ff0000]',
+                                    facebook: 'bg-[#1877f2]',
+                                    tiktok: 'bg-slate-900 dark:bg-white',
+                                  };
+                                  return (
+                                    <span
+                                      key={plat}
+                                      className={`w-1.5 h-1.5 rounded-full ${dotColors[plat] || 'bg-[#6046ff]'}`}
+                                      title={plat}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </div>
                           )}
                         </>
                       )}
@@ -224,114 +312,133 @@ export default function SchedulePage() {
                   );
                 })}
               </div>
+            </>
+          )}
+        </div>
+
+        {/* Right Sidebar (Col-span 4) */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Card 1: Próximos Agendados */}
+          <div className="nexo-panel p-5 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                {selectedDate
+                  ? `Posts em ${selectedDate.toLocaleDateString('pt-BR')}`
+                  : 'Próximos Agendados'}
+              </h3>
+              <Link
+                href="/schedule"
+                onClick={() => setSelectedDate(null)}
+                className="text-xs font-semibold text-[#6046ff] dark:text-[#a08fff] hover:underline"
+              >
+                Ver todos
+              </Link>
             </div>
 
-            {/* List */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 flex flex-col max-h-[700px]">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold text-slate-900 dark:text-white">
-                  {selectedDate ? selectedDate.toLocaleDateString('pt-BR') : 'Próximos Agendados'}
-                </h2>
-                <span className="px-2.5 py-1 text-xs font-bold bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 rounded-full">
-                  {visiblePosts.length}
-                </span>
+            {loading ? (
+              <div className="py-8 text-center text-xs text-slate-400">
+                <Loader2 size={18} className="animate-spin mx-auto mb-2" />
+                Carregando posts...
               </div>
-
-              {selectedDate && (
-                <button
-                  onClick={() => setSelectedDate(null)}
-                  className="text-xs text-brand-600 hover:text-brand-700 font-medium mb-3 text-left"
-                >
-                  ← Ver todos ({posts.length})
-                </button>
-              )}
-
-              <div className="space-y-3 overflow-y-auto pr-1 flex-1">
-                {loading ? (
-                  <div className="flex justify-center py-8 text-slate-400">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  </div>
-                ) : visiblePosts.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500 dark:text-slate-400">
-                    <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm mb-3">Nenhum post agendado</p>
-                    <Link
-                      href="/upload"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700"
-                    >
-                      Agendar vídeos agora
-                    </Link>
-                  </div>
-                ) : (
-                  visiblePosts.map((post) => {
-                    const Icon = typeIcon[post.post_type] || FileText;
-                    return (
-                      <div key={post.job_id} className="p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-amber-500" />
-                            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-                              {new Date(post.scheduled_date).toLocaleString('pt-BR', {
-                                weekday: 'short',
-                                day: '2-digit',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </div>
-                          {busy === post.job_id && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
-                        </div>
-                        <div className="flex items-start gap-2 mb-1.5">
-                          <Icon className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-sm text-slate-900 dark:text-white line-clamp-2">
-                              {post.title || '(sem título)'}
-                            </p>
-                            {post.description && (
-                              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">
-                                {post.description}
-                              </p>
-                            )}
-                            {post.source_filename && (
-                              <p className="text-[11px] text-slate-400 truncate mt-0.5">{post.source_filename}</p>
-                            )}
-                          </div>
-                        </div>
-                        {post.platforms?.length > 0 && (
-                          <div className="flex items-center gap-1 mt-2 mb-2">
-                            {post.platforms.map((p) => (
-                              <PlatformIcon key={p} platform={p} size="sm" />
-                            ))}
-                          </div>
+            ) : visiblePosts.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">
+                <Calendar size={24} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                Nenhum post agendado para esta seleção.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {visiblePosts.slice(0, 4).map((post) => {
+                  const d = new Date(post.scheduled_date);
+                  const timeFormatted = `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}, ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+                  return (
+                    <div key={post.job_id} className="py-3 flex items-start gap-3 first:pt-0 last:pb-0">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 shrink-0 flex items-center justify-center border border-slate-200/80 dark:border-slate-800">
+                        {post.post_type === 'video' ? (
+                          <FileVideo size={16} className="text-slate-400" />
+                        ) : (
+                          <Calendar size={16} className="text-slate-400" />
                         )}
-                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                          <button
-                            onClick={() => openEdit(post)}
-                            disabled={busy !== null}
-                            className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-                          >
-                            <Pencil className="w-3 h-3" />
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => cancelPost(post.job_id)}
-                            disabled={busy !== null}
-                            className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 transition-colors"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                            Cancelar
-                          </button>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-[11px] font-semibold text-slate-400">
+                          {timeFormatted}
+                        </span>
+                        <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                          {post.title || 'Sem título'}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          {post.platforms?.map((plat) => (
+                            <PlatformIcon key={plat} platform={plat} size="sm" />
+                          ))}
                         </div>
                       </div>
-                    );
-                  })
-                )}
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openEdit(post)}
+                          className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                          title="Reagendar"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          onClick={() => cancelPost(post.job_id)}
+                          className="p-1 text-slate-400 hover:text-red-500"
+                          title="Cancelar"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <Link
+              href="/upload"
+              className="mt-4 w-full py-2.5 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111923] hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+            >
+              <Plus size={14} />
+              Agendar novo post
+            </Link>
+          </div>
+
+          {/* Card 2: Resumo do período */}
+          <div className="nexo-panel p-5 sm:p-6">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">
+              Resumo do período
+            </h3>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                  <span className="text-slate-600 dark:text-slate-400">Posts agendados</span>
+                </div>
+                <span className="font-bold text-slate-900 dark:text-white">{posts.length}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-slate-600 dark:text-slate-400">Publicados</span>
+                </div>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {publishedCount}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="text-slate-600 dark:text-slate-400">Com falha</span>
+                </div>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {failedCount}
+                </span>
               </div>
             </div>
           </div>
-        </main>
+        </div>
       </div>
+
 
       {editing && (
         <>
@@ -366,6 +473,6 @@ export default function SchedulePage() {
           </div>
         </>
       )}
-    </div>
+    </AppShell>
   );
 }

@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
+import AppShell from '@/components/AppShell';
 import PlatformIcon from '@/components/PlatformIcon';
 import { backend, type AutoDMRuleView, type AutoDMLogView } from '@/lib/client';
 import {
@@ -111,15 +110,11 @@ export default function AutoDMPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <Sidebar />
-      <div className="flex-1 lg:ml-64">
-        <Header title="AutoDM" subtitle={`Automação de comentários e Directs (${profileName || 'Cliente'})`} />
-        <main className="p-4 sm:p-6 lg:p-8 space-y-6">
+    <AppShell title="AutoDM" subtitle={`Automação de comentários e Directs (${profileName || 'Cliente'})`} className="space-y-6">
           {/* Topo */}
           <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 text-white flex items-center justify-center">
+              <div className="w-11 h-11 rounded-xl bg-brand-600 text-white flex items-center justify-center">
                 <MessageCircle className="w-6 h-6" />
               </div>
               <div>
@@ -143,7 +138,7 @@ export default function AutoDMPage() {
           {showForm && (
             <form
               onSubmit={handleSaveRule}
-              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-4"
+              className="nexo-panel p-6 space-y-4"
             >
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Criar Regra de AutoDM</h3>
               <div className="grid sm:grid-cols-2 gap-4">
@@ -232,7 +227,7 @@ export default function AutoDMPage() {
                 {rules.map((r) => (
                   <div
                     key={r.id}
-                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5"
+                    className="nexo-panel p-5"
                   >
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2.5">
@@ -285,7 +280,7 @@ export default function AutoDMPage() {
 
               {/* Simulador e Histórico */}
               <div className="space-y-6">
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                <div className="nexo-panel p-5">
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                     <Zap className="w-4 h-4 text-amber-500" />
                     Testar Gatilho Agora
@@ -340,7 +335,7 @@ export default function AutoDMPage() {
                   )}
                 </div>
 
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5">
+                <div className="nexo-panel p-5">
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">Últimos Disparos</h3>
                   {logs.length === 0 ? (
                     <p className="text-xs text-slate-500">Nenhum disparo registrado ainda.</p>
@@ -364,8 +359,6 @@ export default function AutoDMPage() {
               </div>
             </div>
           )}
-        </main>
-      </div>
-    </div>
+        </AppShell>
   );
 }
