@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getActiveProfile } from '@/lib/activeProfile';
-import { createPost, createTarget, getAccount, getTargets, updatePost } from '@/lib/db';
+import { createPost, createTarget, getAccounts, getTargets, updatePost } from '@/lib/db';
 import { publishPost, saveMedia, guessMime } from '@/lib/publish';
 
 export const runtime = 'nodejs';
@@ -16,13 +16,24 @@ export async function POST(request: NextRequest) {
     const description = (form.get('description') as string) || '';
     const platformsRaw = form.getAll('platform') as string[];
     const platforms = platformsRaw.length ? platformsRaw : [];
+    const accountIds = Array.from(new Set(form.getAll('account_id') as string[]));
+    const available = getAccounts(profile.id);
+    const destinations = accountIds.length
+      ? accountIds.map((id) => available.find((a) => a.id === id))
+      : Array.from(new Set(platforms)).map((platform) => {
+          const matches = available.filter((a) => a.platform === platform);
+          return matches.length === 1 ? matches[0] : undefined;
+        });
+    if (!destinations.length || destinations.some((a) => !a)) {
+      return NextResponse.json({ error: 'Selecione contas válidas e específicas deste cliente.' }, { status: 400 });
+    }
     const scheduledAt = (form.get('scheduled_at') as string) || null;
     const timezone = (form.get('timezone') as string) || null;
     const mediaType = ((form.get('media_type') as string) || 'video') as 'video' | 'photo' | 'text';
     const privacy = (form.get('privacy') as string) || undefined;
     const format = (form.get('format') as string) || 'feed';
 
-    if (platforms.length === 0) {
+    if (destinations.length === 0) {
       return NextResponse.json({ error: 'Selecione ao menos uma plataforma.' }, { status: 400 });
     }
     if (mediaType === 'text' && !title.trim()) {
@@ -71,24 +82,8 @@ export async function POST(request: NextRequest) {
     });
 
     // 3) Criar um destino por plataforma
-    const missing: string[] = [];
-    for (const p of platforms) {
-      const account = getAccount(profile.id, p);
-      if (!account) {
-        missing.push(p);
-        continue;
-      }
-      createTarget({ post_id: post.id, platform: p, account_id: account.id });
-    }
-
-    if (missing.length) {
-      return NextResponse.json(
-        {
-          error: `Sem conta conectada para: ${missing.join(', ')}`,
-          post_id: post.id,
-        },
-        { status: 400 }
-      );
+    for (const account of destinations) {
+      if (account) createTarget({ post_id: post.id, platform: account.platform, account_id: account.id });
     }
 
     // 4) Agendado â†’ nÃ£o publica agora

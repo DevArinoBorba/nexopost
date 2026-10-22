@@ -101,6 +101,8 @@ export default function UploadPage() {
   const [contentType, setContentType] = useState<ContentType>('video');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [connected, setConnected] = useState<string[]>([]);
+  const [destinationAccounts, setDestinationAccounts] = useState<{id: string; platform: string; display_name: string | null; handle?: string | null}[]>([]);
+  const platformFor = (id: string) => destinationAccounts.find((a) => a.id === id)?.platform || id;
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
@@ -294,7 +296,7 @@ export default function UploadPage() {
     setIsGeneratingAi(true);
     setAiError('');
     try {
-      const primaryPlatform = selectedPlatforms[0] || 'instagram';
+      const primaryPlatform = platformFor(selectedPlatforms[0]) || 'instagram';
       const res = await backend.generateAICopy({
         topic: topicToUse,
         platform: primaryPlatform,
@@ -332,9 +334,10 @@ export default function UploadPage() {
     (async () => {
       try {
         const data = await backend.getAccounts();
-        const platforms = data.accounts.map((a) => a.platform);
+        setDestinationAccounts(data.accounts.filter((a) => Boolean(a.id)).map((a) => ({ id: a.id!, platform: a.platform, display_name: a.display_name || a.handle || a.platform, handle: a.handle })));
+        const platforms = data.accounts.map((a) => a.id).filter((id): id is string => Boolean(id));
         setConnected(platforms);
-        setSelectedPlatforms(platforms);
+        setSelectedPlatforms([]);
       } catch (e) {
         setError((e as Error).message);
       }
@@ -437,7 +440,7 @@ export default function UploadPage() {
   const generateAiForSingleBulkItem = async (item: BulkVideoItem) => {
     updateBulkItem(item.id, { status: 'generating_ai', errorMessage: undefined });
     try {
-      const primaryPlatform = selectedPlatforms[0] || 'instagram';
+      const primaryPlatform = platformFor(selectedPlatforms[0]) || 'instagram';
       const baseTopic = bulkAiContext.trim()
         ? `${item.title} (${bulkAiContext.trim()})`
         : item.title || cleanFilenameToTitle(item.file.name);
@@ -482,7 +485,7 @@ export default function UploadPage() {
     setBulkAiProgress({ current: 0, total: bulkItems.length });
     setError('');
 
-    const primaryPlatform = selectedPlatforms[0] || 'instagram';
+    const primaryPlatform = platformFor(selectedPlatforms[0]) || 'instagram';
 
     for (let i = 0; i < bulkItems.length; i++) {
       const item = bulkItems[i];
@@ -593,7 +596,7 @@ export default function UploadPage() {
           fd.append('description', finalDescription);
         }
 
-        selectedPlatforms.forEach((p) => fd.append('platform', p));
+        selectedPlatforms.forEach((p) => fd.append('account_id', p));
         fd.append('privacy', privacy);
         fd.append('format', format);
         fd.append('scheduled_at', scheduledIso);
@@ -640,7 +643,7 @@ export default function UploadPage() {
       fd.append('media_type', contentType);
       if (title) fd.append('title', title);
       if (description) fd.append('description', description);
-      selectedPlatforms.forEach((p) => fd.append('platform', p));
+      selectedPlatforms.forEach((p) => fd.append('account_id', p));
       fd.append('privacy', privacy);
 
       if (contentType !== 'text') {
@@ -765,11 +768,13 @@ export default function UploadPage() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {connected.map((platform) => {
+                  const account = destinationAccounts.find((a) => a.id === platform);
                   const isSelected = selectedPlatforms.includes(platform);
                   return (
                     <button
                       key={platform}
                       type="button"
+                      aria-pressed={isSelected}
                       onClick={() => togglePlatform(platform)}
                       className={`relative p-4 rounded-xl border-2 transition-all ${
                         isSelected
@@ -777,10 +782,11 @@ export default function UploadPage() {
                           : 'border-slate-200 dark:border-slate-700'
                       }`}
                     >
-                      <PlatformIcon platform={platform} size="md" />
+                      <PlatformIcon platform={platformFor(platform)} size="md" />
                       <p className="text-sm font-medium mt-2 text-slate-700 dark:text-slate-300 capitalize">
-                        {platform}
+                        {platformFor(platform)}
                       </p>
+                      <p className="text-xs mt-1">{account?.display_name || account?.handle || platform}</p>
                       {isSelected && (
                         <div className="absolute top-2 right-2 w-5 h-5 bg-brand-500 rounded-full flex items-center justify-center">
                           <Check className="w-3 h-3 text-white" />
@@ -1724,7 +1730,7 @@ export default function UploadPage() {
                     <span>Publicando em:</span>
                     <div className="flex items-center gap-1">
                       {selectedPlatforms.map((p) => (
-                        <PlatformIcon key={p} platform={p} size="sm" />
+                        <span key={p} title={destinationAccounts.find((a) => a.id === p)?.display_name || p}><PlatformIcon platform={platformFor(p)} size="sm" /></span>
                       ))}
                     </div>
                     {selectedPlatforms.length === 0 && (
