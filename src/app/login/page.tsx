@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout';
 import { useAuth } from '@/components/AuthProvider';
 
@@ -41,12 +41,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillOwnerAccount = () => {
-    setEmail('arinoborba@gmail.com');
-    setPassword('changeme');
-    setError('');
   };
 
   return (
@@ -131,22 +125,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Acesso rápido da conta principal */}
-          <div className="mt-5 p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <ShieldCheck className="w-4 h-4 text-brand-600 flex-shrink-0" />
-              <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
-                Conta Admin: <code className="font-mono">arinoborba@gmail.com</code>
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={fillOwnerAccount}
-              className="px-2.5 py-1 text-xs font-medium bg-brand-50 dark:bg-brand-900/40 text-brand-600 dark:text-brand-300 rounded-lg hover:bg-brand-100 transition-colors flex-shrink-0"
-            >
-              Preencher
-            </button>
-          </div>
       </div>
     </AuthLayout>
   );
