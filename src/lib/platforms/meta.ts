@@ -75,6 +75,8 @@ export interface FbPage {
   id: string;
   name: string;
   access_token?: string;
+  followers_count?: number;
+  fan_count?: number;
   picture?: { data?: { url?: string } };
 }
 
@@ -82,7 +84,7 @@ export interface FbPage {
 export async function listPages(userToken: string): Promise<FbPage[]> {
   const data = await fetchJson<{ data?: FbPage[] }>(
     `${GRAPH}/me/accounts?${new URLSearchParams({
-      fields: 'id,name,access_token,picture{url}',
+      fields: 'id,name,access_token,followers_count,fan_count,picture{url}',
       access_token: userToken,
     })}`
   );

@@ -52,7 +52,11 @@ export async function POST(request: NextRequest) {
         refresh_token: null,
         token_expires_at: null,
         scope: null,
-        meta: JSON.stringify({ pageId: page.id, pageName: page.name }),
+        meta: JSON.stringify({
+          pageId: page.id,
+          pageName: page.name,
+          followers: page.followers_count ?? page.fan_count ?? 0,
+        }),
       });
       connected.push('facebook');
     }

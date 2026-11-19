@@ -11,7 +11,14 @@ const TOKEN_URL = 'https://open.tiktokapis.com/v2/oauth/token/';
 const API = 'https://open.tiktokapis.com/v2';
 
 // video.publish = publicar direto | video.upload = enviar rascunho (caixa de entrada)
-const SCOPES = ['user.info.basic', 'video.publish', 'video.upload'];
+const SCOPES = [
+  'user.info.basic',
+  'user.info.profile',
+  'user.info.stats',
+  'video.list',
+  'video.publish',
+  'video.upload',
+];
 
 const MIN_CHUNK = 5 * 1024 * 1024;
 const MAX_CHUNK = 64 * 1024 * 1024;
@@ -150,12 +157,19 @@ export const tiktokProvider: SocialProvider = {
           avatar_url?: string;
           display_name?: string;
           username?: string;
+          follower_count?: number;
+          following_count?: number;
+          likes_count?: number;
+          video_count?: number;
         };
       };
       error?: TikTokError;
-    }>(`${API}/user/info/?fields=open_id,union_id,avatar_url,display_name`, {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-    });
+    }>(
+      `${API}/user/info/?fields=open_id,union_id,avatar_url,display_name,username,follower_count,following_count,likes_count,video_count`,
+      {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      }
+    );
     checkError(data.error);
 
     const user = data.data?.user;
@@ -166,7 +180,14 @@ export const tiktokProvider: SocialProvider = {
       display_name: user.display_name || 'TikTok',
       handle: user.username ? `@${user.username}` : undefined,
       avatar_url: user.avatar_url,
-      meta: { openId: user.open_id, unionId: user.union_id },
+      meta: {
+        openId: user.open_id,
+        unionId: user.union_id,
+        followers: user.follower_count ?? 0,
+        following: user.following_count ?? 0,
+        likes: user.likes_count ?? 0,
+        videos: user.video_count ?? 0,
+      },
     };
   },
 
