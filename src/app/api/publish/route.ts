@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getActiveProfile } from '@/lib/activeProfile';
 import { createPost, createTarget, getAccounts, getTargets } from '@/lib/db';
 import { publishPost, saveMedia } from '@/lib/publish';
-import { notifyPostScheduled } from '@/lib/whatsappNotify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -91,9 +90,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4) Agendado → não publica agora e avisa no WhatsApp
+    // 4) Agendado → não publica agora
     if (scheduledAt) {
-      await notifyPostScheduled(post.id, targetPlatforms).catch(() => {});
       return NextResponse.json({
         success: true,
         post_id: post.id,

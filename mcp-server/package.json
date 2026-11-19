@@ -1,7 +1,7 @@
 {
   "name": "nexopost-mcp",
-  "version": "1.0.0",
-  "description": "Servidor MCP oficial do NexoPost para integração com o Agente Hermes via stdio",
+  "version": "2.0.0",
+  "description": "Servidor MCP do NexoPost (stdio) para gerenciar contas dark, agendamentos e publicações",
   "type": "module",
   "main": "index.mjs",
   "bin": {

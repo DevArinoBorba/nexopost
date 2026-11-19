@@ -425,7 +425,7 @@ export const backend = {
       }>
     ),
 
-  // ----- Chaves de API (Hermes & REST v1) -----
+  // ----- Chaves de API (MCP & REST v1) -----
   getApiKeys: (profileId?: string) =>
     fetch(`/api/api-keys${profileId ? `?profile_id=${encodeURIComponent(profileId)}` : ''}`, {
       cache: 'no-store',
@@ -459,95 +459,7 @@ export const backend = {
         apiKeys: ApiKeyView[];
       }>
     ),
-
-  // ----- Vínculo e Verificação de WhatsApp (Hermes) -----
-  getWhatsAppLinks: () =>
-    fetch('/api/whatsapp-links', { cache: 'no-store' }).then(
-      json<{
-        success: boolean;
-        activeProfile: { id: string; username: string };
-        profiles: { id: string; username: string; account_count: number; platforms: string[] }[];
-        whatsappLinks: WhatsAppLinkView[];
-      }>
-    ),
-
-  requestWhatsAppCode: (data: {
-    phone: string;
-    scope: 'user' | 'profile';
-    profile_id?: string;
-    label?: string;
-  }) =>
-    fetch('/api/whatsapp-links', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'request_code', ...data }),
-    }).then(
-      json<{
-        success: boolean;
-        link: WhatsAppLinkView;
-        whatsappLinks: WhatsAppLinkView[];
-        message: string;
-      }>
-    ),
-
-  verifyWhatsAppCode: (data: { link_id: string; code: string }) =>
-    fetch('/api/whatsapp-links', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'verify_code', ...data }),
-    }).then(
-      json<{
-        success: boolean;
-        link: WhatsAppLinkView;
-        whatsappLinks: WhatsAppLinkView[];
-        apiKeys: ApiKeyView[];
-        message: string;
-      }>
-    ),
-
-  deleteWhatsAppLink: (id: string) =>
-    fetch(`/api/whatsapp-links?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).then(
-      json<{
-        success: boolean;
-        whatsappLinks: WhatsAppLinkView[];
-        apiKeys: ApiKeyView[];
-      }>
-    ),
-
-  sendWhatsAppTest: (linkId: string) =>
-    fetch('/api/whatsapp-links', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'send_test', link_id: linkId }),
-    }).then(json<{ success: boolean; message: string }>),
-
-  sendWhatsAppWeeklyReport: (linkId: string) =>
-    fetch('/api/whatsapp-links', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'send_weekly_report', link_id: linkId }),
-    }).then(json<{ success: boolean; sent_reports: number; message: string }>),
 };
-
-export interface WhatsAppLinkView {
-  id: string;
-  user_id: string;
-  scope: 'user' | 'profile';
-  profile_id: string | null;
-  profile_name?: string | null;
-  phone_raw: string;
-  phone_normalized: string;
-  phone_alt: string | null;
-  whatsapp_lid: string | null;
-  label: string;
-  status: 'pending' | 'verified';
-  code_expires_at: string | null;
-  verified_at: string | null;
-  last_used_at: string | null;
-  created_at: string;
-  updated_at: string;
-  allowed_profiles: { id: string; username: string; platforms: string[] }[];
-}
 
 export interface ApiKeyView {
   id: string;

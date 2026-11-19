@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Perfil de cliente inválido.' }, { status: 400 });
     }
 
-    const name = String(body.name || `Hermes Agent - ${targetProfile.username}`).trim();
+    const name = String(body.name || `MCP - ${targetProfile.username}`).trim();
     const { apiKey, rawToken } = createApiKey({
       user_id: user.id,
       profile_id: targetProfile.id,

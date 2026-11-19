@@ -20,34 +20,33 @@ export function getSessionIdFromCookies(): string | null {
 }
 
 /**
- * Retorna o usuário autenticado pela sessão real (cookie HttpOnly `session`),
- * ou `null` quando não há sessão válida.
+ * Modo pessoal (single-user): resolve diretamente o usuário proprietário.
  */
 export function getAuthenticatedUser(): User | null {
   const sessionId = getSessionIdFromCookies();
-  if (!sessionId) return null;
-  return getUserFromSession(sessionId);
+  if (sessionId) {
+    const sessionUser = getUserFromSession(sessionId);
+    if (sessionUser) return sessionUser;
+  }
+  return ensureDefaultUser().user;
 }
 
 /**
- * Resolve o usuário atual a partir do cookie de sessão real (`session`).
- * Caso seja chamado fora de sessão (ex.: primeiro boot local ou cron),
- * garante o usuário proprietário padrão para que rotinas internas não quebrem.
+ * Garante e retorna o usuário proprietário único do NexoPost (modo pessoal).
  */
 export function ensureDefaultUser(): { user: User; profile: Profile; isAuthenticated: boolean } {
-  const sessionUser = getAuthenticatedUser();
-  if (sessionUser) {
-    const profiles = getProfiles(sessionUser.id);
-    const profile = profiles[0] || createProfile(sessionUser.id, 'default');
-    return { user: sessionUser, profile, isAuthenticated: true };
-  }
-
-  const email = 'arinoborba@gmail.com';
+  const email = process.env.OWNER_EMAIL || 'arinoborba@gmail.com';
   let user = getUserByEmail(email);
   if (!user) {
-    user = createUser({ email, password: 'changeme', name: 'Arino Borba', role: 'admin', plan: 'agency' });
+    user = createUser({
+      email,
+      password: 'changeme',
+      name: process.env.OWNER_NAME || 'Arino Borba',
+      role: 'admin',
+      plan: 'personal',
+    });
   }
   const profiles = getProfiles(user.id);
   const profile = profiles[0] || createProfile(user.id, 'default');
-  return { user, profile, isAuthenticated: false };
+  return { user, profile, isAuthenticated: true };
 }
