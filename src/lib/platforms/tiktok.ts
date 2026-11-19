@@ -153,7 +153,7 @@ export const tiktokProvider: SocialProvider = {
         };
       };
       error?: TikTokError;
-    }>(`${API}/user/info/?fields=open_id,union_id,avatar_url,display_name,username`, {
+    }>(`${API}/user/info/?fields=open_id,union_id,avatar_url,display_name`, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
     checkError(data.error);
